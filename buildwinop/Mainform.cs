@@ -77,7 +77,7 @@ namespace Win11Optimizer
                 BackColor   = BG,
                 Padding     = new Padding(0)
             };
-            outer.RowStyles.Add(new RowStyle(SizeType.Absolute, 80));   // header
+            outer.RowStyles.Add(new RowStyle(SizeType.Absolute, 100));  // header
             outer.RowStyles.Add(new RowStyle(SizeType.Percent, 100));   // body
             outer.RowStyles.Add(new RowStyle(SizeType.Absolute, 160));  // log
             Controls.Add(outer);
@@ -90,31 +90,29 @@ namespace Win11Optimizer
             };
             header.Paint += (s, e) =>
             {
+                var g = e.Graphics;
+                g.SmoothingMode    = SmoothingMode.AntiAlias;
+                g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+
+                // gradient stripe at bottom
                 using var br = new LinearGradientBrush(
                     new Rectangle(0, header.Height - 2, header.Width, 2),
                     ACCENT, ACCENT2, LinearGradientMode.Horizontal);
-                e.Graphics.FillRectangle(br, 0, header.Height - 2, header.Width, 2);
+                g.FillRectangle(br, 0, header.Height - 2, header.Width, 2);
+
+                // scale title font to header height
+                float titleSize = Math.Max(14f, header.Height * 0.30f);
+                float subSize   = Math.Max(8f,  header.Height * 0.13f);
+
+                using var titleFont = new Font("Segoe UI", titleSize, FontStyle.Bold);
+                using var subFont   = new Font("Segoe UI", subSize,   FontStyle.Regular);
+                using var textBrush = new SolidBrush(TEXT);
+                using var dimBrush  = new SolidBrush(TEXTDIM);
+
+                g.DrawString("WIN11  OPTIMIZER", titleFont, textBrush, new PointF(20, header.Height * 0.12f));
+                g.DrawString("Performance · Privacy · Gaming · Network", subFont, dimBrush, new PointF(24, header.Height * 0.62f));
             };
             outer.Controls.Add(header, 0, 0);
-
-            header.Controls.Add(new Label
-            {
-                Text      = "WIN11  OPTIMIZER",
-                Font      = FONT_HEAD,
-                ForeColor = TEXT,
-                AutoSize  = true,
-                Location  = new Point(20, 14),
-                BackColor = SURFACE
-            });
-            header.Controls.Add(new Label
-            {
-                Text      = "Performance · Privacy · Gaming · Network",
-                Font      = FONT_SUB,
-                ForeColor = TEXTDIM,
-                AutoSize  = true,
-                Location  = new Point(23, 50),
-                BackColor = SURFACE
-            });
 
             // ── Body: left column (select + buttons) | right column (info + summary) ─
             var body = new TableLayoutPanel
@@ -240,7 +238,7 @@ namespace Win11Optimizer
             AddInfoLineDock(infoInner, ACCENT,  "• Run as Administrator for registry & service access.");
             AddInfoLineDock(infoInner, WARN,    "• A reboot is required for HAGS & timer tweaks.");
             AddInfoLineDock(infoInner, TEXTDIM, "• Bloatware removal also strips provisioned packages.");
-            AddInfoLineDock(infoInner, TEXTDIM, "• Camera/mic policy applies to all Windows apps.");
+            AddGithubLink(infoInner);
 
             // Summary card
             var sumCard = MakeCardDock("LAST RUN SUMMARY");
@@ -248,15 +246,19 @@ namespace Win11Optimizer
             var sumInner = new Panel { Dock = DockStyle.Fill, BackColor = CARD, Padding = new Padding(10, 34, 10, 10) };
             sumCard.Controls.Add(sumInner);
 
-            var sumBoxes = new FlowLayoutPanel
+            var sumBoxes = new TableLayoutPanel
             {
-                Dock      = DockStyle.Fill,
-                BackColor = CARD,
-                FlowDirection = FlowDirection.LeftToRight
+                Dock        = DockStyle.Fill,
+                BackColor   = CARD,
+                ColumnCount = 2,
+                RowCount    = 1
             };
+            sumBoxes.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            sumBoxes.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            sumBoxes.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             sumInner.Controls.Add(sumBoxes);
-            _passLabel = AddSummaryBoxDock(sumBoxes, ACCENT, "0", "Succeeded");
-            _failLabel = AddSummaryBoxDock(sumBoxes, DANGER, "0", "Failed");
+            _passLabel = AddSummaryBoxDock(sumBoxes, 0, ACCENT, "0", "Succeeded");
+            _failLabel = AddSummaryBoxDock(sumBoxes, 1, DANGER, "0", "Failed");
 
             // ── Log box ───────────────────────────────────────────────────
             var logCard = MakeCardDock("OUTPUT LOG");
@@ -348,48 +350,79 @@ namespace Win11Optimizer
             flow.Controls.Add(new Label
             {
                 Text      = text,
-                Font      = FONT_BODY,
+                Font      = new Font("Segoe UI", 11f, FontStyle.Regular),
                 ForeColor = col,
                 AutoSize  = true,
                 BackColor = CARD,
-                Margin    = new Padding(0, 2, 0, 2)
+                Margin    = new Padding(0, 4, 0, 4)
             });
         }
 
-        Label AddSummaryBoxDock(FlowLayoutPanel parent, Color col, string count, string title)
+        void AddGithubLink(Panel parent)
+        {
+            var flow = parent.Controls.Count == 0
+                ? new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, BackColor = CARD, WrapContents = false }
+                : (FlowLayoutPanel)parent.Controls[0];
+            if (parent.Controls.Count == 0) parent.Controls.Add(flow);
+
+            var link = new LinkLabel
+            {
+                Text      = "⭐  GitHub: github.com/ConnorCorn07/win11op",
+                Font      = new Font("Segoe UI", 11f, FontStyle.Regular),
+                AutoSize  = true,
+                BackColor = CARD,
+                Margin    = new Padding(0, 8, 0, 4)
+            };
+            link.LinkColor         = ACCENT2;
+            link.ActiveLinkColor   = ACCENT;
+            link.VisitedLinkColor  = ACCENT2;
+            link.LinkBehavior      = LinkBehavior.HoverUnderline;
+            link.Click += (s, e) =>
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName        = "https://github.com/ConnorCorn07/win11op",
+                    UseShellExecute = true
+                });
+            flow.Controls.Add(link);
+        }
+
+        Label AddSummaryBoxDock(TableLayoutPanel parent, int col, Color col2, string count, string title)
         {
             var box = new Panel
             {
-                Size      = new Size(120, 80),
+                Dock      = DockStyle.Fill,
                 BackColor = BG,
-                Margin    = new Padding(0, 0, 16, 0)
+                Margin    = new Padding(4)
             };
             box.Paint += (s, e) =>
             {
-                using var pen = new Pen(col) { Width = 1.5f };
-                e.Graphics.DrawRectangle(pen, 0, 0, box.Width - 1, box.Height - 1);
+                using var pen = new Pen(col2) { Width = 2f };
+                e.Graphics.DrawRectangle(pen, 1, 1, box.Width - 3, box.Height - 3);
             };
+
             var num = new Label
             {
                 Text      = count,
-                Font      = new Font("Segoe UI", 22f, FontStyle.Bold),
-                ForeColor = col,
+                Font      = new Font("Segoe UI", 36f, FontStyle.Bold),
+                ForeColor = col2,
                 TextAlign = ContentAlignment.MiddleCenter,
-                Bounds    = new Rectangle(0, 6, 120, 38),
+                Dock      = DockStyle.Fill,
                 BackColor = BG
             };
             var sub = new Label
             {
                 Text      = title,
-                Font      = FONT_BODY,
+                Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
                 ForeColor = TEXTDIM,
                 TextAlign = ContentAlignment.MiddleCenter,
-                Bounds    = new Rectangle(0, 48, 120, 22),
+                Dock      = DockStyle.Bottom,
+                Height    = 32,
                 BackColor = BG
             };
+
             box.Controls.Add(num);
             box.Controls.Add(sub);
-            parent.Controls.Add(box);
+            parent.Controls.Add(box, col, 0);
             return num;
         }
 

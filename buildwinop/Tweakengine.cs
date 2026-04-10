@@ -156,8 +156,6 @@ namespace Win11Optimizer
                         "DisableLocation", 1, RegistryValueKind.DWord, "Disable location tracking");
             SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy",
                         "LetAppsAccessCamera", 2, RegistryValueKind.DWord, "Block app camera access");
-            SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy",
-                        "LetAppsAccessMicrophone", 2, RegistryValueKind.DWord, "Block app microphone access");
             SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Windows Error Reporting",
                         "Disabled", 1, RegistryValueKind.DWord, "Disable Windows Error Reporting");
             SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\System",
