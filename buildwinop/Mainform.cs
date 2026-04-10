@@ -56,104 +56,157 @@ namespace Win11Optimizer
             BackColor       = BG;
             ForeColor       = TEXT;
             Font            = FONT_BODY;
-            FormBorderStyle = FormBorderStyle.FixedSingle;
-            MaximizeBox     = false;
+            FormBorderStyle = FormBorderStyle.Sizable;
+            MaximizeBox     = true;
 
             // ── Left accent bar ───────────────────────────────────────────
             sideAccent = new Panel
             {
-                Bounds    = new Rectangle(0, 0, 4, Height),
-                BackColor = ACCENT,
-                Anchor    = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Bottom
+                Dock      = DockStyle.Left,
+                Width     = 4,
+                BackColor = ACCENT
             };
             Controls.Add(sideAccent);
+
+            // ── Outer layout: header on top, body in middle, log at bottom ─
+            var outer = new TableLayoutPanel
+            {
+                Dock        = DockStyle.Fill,
+                ColumnCount = 1,
+                RowCount    = 3,
+                BackColor   = BG,
+                Padding     = new Padding(0)
+            };
+            outer.RowStyles.Add(new RowStyle(SizeType.Absolute, 80));   // header
+            outer.RowStyles.Add(new RowStyle(SizeType.Percent, 100));   // body
+            outer.RowStyles.Add(new RowStyle(SizeType.Absolute, 160));  // log
+            Controls.Add(outer);
 
             // ── Header ────────────────────────────────────────────────────
             var header = new Panel
             {
-                Bounds    = new Rectangle(4, 0, Width - 4, 80),
-                BackColor = SURFACE,
-                Anchor    = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right
+                Dock      = DockStyle.Fill,
+                BackColor = SURFACE
             };
             header.Paint += (s, e) =>
             {
-                var g = e.Graphics;
-                // gradient stripe at bottom
                 using var br = new LinearGradientBrush(
                     new Rectangle(0, header.Height - 2, header.Width, 2),
                     ACCENT, ACCENT2, LinearGradientMode.Horizontal);
-                g.FillRectangle(br, 0, header.Height - 2, header.Width, 2);
+                e.Graphics.FillRectangle(br, 0, header.Height - 2, header.Width, 2);
             };
-            Controls.Add(header);
+            outer.Controls.Add(header, 0, 0);
 
-            var lblTitle = new Label
+            header.Controls.Add(new Label
             {
                 Text      = "WIN11  OPTIMIZER",
                 Font      = FONT_HEAD,
                 ForeColor = TEXT,
                 AutoSize  = true,
                 Location  = new Point(20, 14),
-                BackColor = Color.FromArgb(18, 18, 24)  // SURFACE
-            };
-            header.Controls.Add(lblTitle);
-
-            var lblSub = new Label
+                BackColor = SURFACE
+            });
+            header.Controls.Add(new Label
             {
                 Text      = "Performance · Privacy · Gaming · Network",
                 Font      = FONT_SUB,
                 ForeColor = TEXTDIM,
                 AutoSize  = true,
                 Location  = new Point(23, 50),
-                BackColor = Color.FromArgb(18, 18, 24)  // SURFACE
+                BackColor = SURFACE
+            });
+
+            // ── Body: left column (select + buttons) | right column (info + summary) ─
+            var body = new TableLayoutPanel
+            {
+                Dock        = DockStyle.Fill,
+                ColumnCount = 2,
+                RowCount    = 1,
+                BackColor   = BG,
+                Padding     = new Padding(8)
             };
-            header.Controls.Add(lblSub);
+            body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            outer.Controls.Add(body, 0, 1);
 
-            // ── Tweak selection panel ─────────────────────────────────────
-            var selectPanel = MakeCard(new Rectangle(12, 90, 380, 310), "SELECT TWEAKS");
+            // ── Left column ───────────────────────────────────────────────
+            var leftCol = new TableLayoutPanel
+            {
+                Dock        = DockStyle.Fill,
+                ColumnCount = 1,
+                RowCount    = 3,
+                BackColor   = BG,
+                Padding     = new Padding(0, 0, 4, 0)
+            };
+            leftCol.RowStyles.Add(new RowStyle(SizeType.Percent, 100)); // select card
+            leftCol.RowStyles.Add(new RowStyle(SizeType.Absolute, 54)); // buttons
+            leftCol.RowStyles.Add(new RowStyle(SizeType.Absolute, 36)); // progress+status
+            body.Controls.Add(leftCol, 0, 0);
 
-            (chkPerf,      _) = MakeCheckRow(selectPanel,  54, "⚡  Performance",       "Power plan, NTFS, visual effects, startup");
-            (chkPrivacy,   _) = MakeCheckRow(selectPanel,  98, "🔒  Privacy & Telemetry","Disable tracking, ad ID, data collection");
-            (chkResponsive,_) = MakeCheckRow(selectPanel, 142, "🖥  Responsiveness",     "Menu speed, shutdown timers, high-res clock");
-            (chkGaming,    _) = MakeCheckRow(selectPanel, 186, "🎮  Gaming",             "HAGS, Game Mode, priority, DVR off");
-            (chkNetwork,   _) = MakeCheckRow(selectPanel, 230, "🌐  Network",            "Nagle off, TCP tuning, throttle index");
-            (chkBloat,     _) = MakeCheckRow(selectPanel, 274, "🗑  Remove Bloatware",   "Strips pre-installed junk & ads");
+            // Select tweaks card
+            var selectCard = MakeCardDock("SELECT TWEAKS");
+            leftCol.Controls.Add(selectCard, 0, 0);
 
+            var checkContainer = new Panel
+            {
+                Dock      = DockStyle.Fill,
+                BackColor = CARD,
+                Padding   = new Padding(10, 34, 10, 10)
+            };
+            selectCard.Controls.Add(checkContainer);
+
+            var checkLayout = new TableLayoutPanel
+            {
+                Dock        = DockStyle.Fill,
+                ColumnCount = 1,
+                RowCount    = 6,
+                BackColor   = CARD
+            };
+            for (int i = 0; i < 6; i++)
+                checkLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100f / 6));
+            checkContainer.Controls.Add(checkLayout);
+
+            chkPerf       = MakeCheckRowDock(checkLayout, 0, "⚡  Performance",       "Power plan, NTFS, visual effects, startup");
+            chkPrivacy    = MakeCheckRowDock(checkLayout, 1, "🔒  Privacy & Telemetry","Disable tracking, ad ID, data collection");
+            chkResponsive = MakeCheckRowDock(checkLayout, 2, "🖥  Responsiveness",     "Menu speed, shutdown timers, high-res clock");
+            chkGaming     = MakeCheckRowDock(checkLayout, 3, "🎮  Gaming",             "HAGS, Game Mode, priority, DVR off");
+            chkNetwork    = MakeCheckRowDock(checkLayout, 4, "🌐  Network",            "Nagle off, TCP tuning, throttle index");
+            chkBloat      = MakeCheckRowDock(checkLayout, 5, "🗑  Remove Bloatware",   "Strips pre-installed junk & ads");
             chkPerf.Checked = chkPrivacy.Checked = chkResponsive.Checked = true;
 
-            // ── Info / warning card ───────────────────────────────────────
-            var infoCard = MakeCard(new Rectangle(402, 90, 400, 130), "NOTES");
-            AddInfoLine(infoCard, 48,  ACCENT,  "• Run as Administrator for registry & service access.");
-            AddInfoLine(infoCard, 70,  WARN,    "• A reboot is required for HAGS & timer tweaks.");
-            AddInfoLine(infoCard, 92,  TEXTDIM, "• Bloatware removal also strips provisioned packages.");
-            AddInfoLine(infoCard, 114, TEXTDIM, "• Camera/mic policy applies to all Windows apps.");
+            // Buttons row
+            var btnPanel = new Panel { Dock = DockStyle.Fill, BackColor = BG, Padding = new Padding(0, 6, 0, 0) };
+            leftCol.Controls.Add(btnPanel, 0, 1);
 
-            // ── Result summary boxes ──────────────────────────────────────
-            var sumCard = MakeCard(new Rectangle(402, 232, 400, 170), "LAST RUN SUMMARY");
-            // placeholders; populated after run
-            _passLabel = AddSummaryBox(sumCard, 54,  ACCENT, "0", "Succeeded");
-            _failLabel = AddSummaryBox(sumCard, 54 + 130, DANGER, "0", "Failed");
+            btnRunSelected = new GlowButton("RUN SELECTED", ACCENT,
+                new Rectangle(0, 0, 0, 42));   // width set by Anchor below
+            btnRunAll = new GlowButton("RUN ALL", ACCENT2,
+                new Rectangle(0, 0, 0, 42));
 
-            // ── Buttons ───────────────────────────────────────────────────
-            btnRunSelected = new GlowButton("RUN SELECTED", ACCENT,  new Rectangle(12,  412, 186, 46));
-            btnRunAll      = new GlowButton("RUN ALL",      ACCENT2, new Rectangle(206, 412, 186, 46));
+            btnRunSelected.Dock = DockStyle.Left;
+            btnRunAll.Dock      = DockStyle.Left;
+            btnRunSelected.Width = 160;
+            btnRunAll.Width      = 130;
+            btnRunSelected.Margin = new Padding(0, 0, 8, 0);
+
             btnRunSelected.Click += async (s, e) => await RunTweaks(selectedOnly: true);
             btnRunAll.Click      += async (s, e) => await RunTweaks(selectedOnly: false);
-            Controls.Add(btnRunSelected);
-            Controls.Add(btnRunAll);
+            btnPanel.Controls.Add(btnRunAll);
+            btnPanel.Controls.Add(btnRunSelected);  // added second = drawn left-first
 
-            // ── Progress bar ──────────────────────────────────────────────
+            // Progress + status row
+            var progPanel = new Panel { Dock = DockStyle.Fill, BackColor = BG, Padding = new Padding(0, 8, 0, 0) };
+            leftCol.Controls.Add(progPanel, 0, 2);
+
             var progBg = new Panel
             {
-                Bounds    = new Rectangle(12, 468, 380, 6),
+                Height    = 6,
+                Dock      = DockStyle.Top,
                 BackColor = BORDER
             };
-            progressBar = new Panel
-            {
-                Bounds    = new Rectangle(0, 0, 0, 6),
-                BackColor = ACCENT
-            };
+            progressBar = new Panel { Bounds = new Rectangle(0, 0, 0, 6), BackColor = ACCENT };
             progBg.Controls.Add(progressBar);
-            Controls.Add(progBg);
+            progPanel.Controls.Add(progBg);
 
             lblStatus = new Label
             {
@@ -161,27 +214,183 @@ namespace Win11Optimizer
                 Font      = FONT_BODY,
                 ForeColor = TEXTDIM,
                 AutoSize  = true,
-                Location  = new Point(12, 482),
+                Location  = new Point(0, 10),
                 BackColor = BG
             };
-            Controls.Add(lblStatus);
+            progPanel.Controls.Add(lblStatus);
+
+            // ── Right column ──────────────────────────────────────────────
+            var rightCol = new TableLayoutPanel
+            {
+                Dock        = DockStyle.Fill,
+                ColumnCount = 1,
+                RowCount    = 2,
+                BackColor   = BG,
+                Padding     = new Padding(4, 0, 0, 0)
+            };
+            rightCol.RowStyles.Add(new RowStyle(SizeType.Percent, 45));
+            rightCol.RowStyles.Add(new RowStyle(SizeType.Percent, 55));
+            body.Controls.Add(rightCol, 1, 0);
+
+            // Notes card
+            var infoCard = MakeCardDock("NOTES");
+            rightCol.Controls.Add(infoCard, 0, 0);
+            var infoInner = new Panel { Dock = DockStyle.Fill, BackColor = CARD, Padding = new Padding(10, 34, 10, 10) };
+            infoCard.Controls.Add(infoInner);
+            AddInfoLineDock(infoInner, ACCENT,  "• Run as Administrator for registry & service access.");
+            AddInfoLineDock(infoInner, WARN,    "• A reboot is required for HAGS & timer tweaks.");
+            AddInfoLineDock(infoInner, TEXTDIM, "• Bloatware removal also strips provisioned packages.");
+            AddInfoLineDock(infoInner, TEXTDIM, "• Camera/mic policy applies to all Windows apps.");
+
+            // Summary card
+            var sumCard = MakeCardDock("LAST RUN SUMMARY");
+            rightCol.Controls.Add(sumCard, 0, 1);
+            var sumInner = new Panel { Dock = DockStyle.Fill, BackColor = CARD, Padding = new Padding(10, 34, 10, 10) };
+            sumCard.Controls.Add(sumInner);
+
+            var sumBoxes = new FlowLayoutPanel
+            {
+                Dock      = DockStyle.Fill,
+                BackColor = CARD,
+                FlowDirection = FlowDirection.LeftToRight
+            };
+            sumInner.Controls.Add(sumBoxes);
+            _passLabel = AddSummaryBoxDock(sumBoxes, ACCENT, "0", "Succeeded");
+            _failLabel = AddSummaryBoxDock(sumBoxes, DANGER, "0", "Failed");
 
             // ── Log box ───────────────────────────────────────────────────
-            var logCard = MakeCard(new Rectangle(12, 504, 790, 148), "OUTPUT LOG");
+            var logCard = MakeCardDock("OUTPUT LOG");
+            outer.Controls.Add(logCard, 0, 2);
+
+            var logInner = new Panel { Dock = DockStyle.Fill, BackColor = BG, Padding = new Padding(8, 36, 8, 8) };
+            logCard.Controls.Add(logInner);
+
             logBox = new RichTextBox
             {
-                Bounds          = new Rectangle(10, 38, 770, 98),
-                BackColor       = BG,
-                ForeColor       = ACCENT,
-                Font            = FONT_LOG,
-                BorderStyle     = BorderStyle.None,
-                ReadOnly        = true,
-                ScrollBars      = RichTextBoxScrollBars.Vertical,
-                WordWrap        = false
+                Dock        = DockStyle.Fill,
+                BackColor   = BG,
+                ForeColor   = ACCENT,
+                Font        = FONT_LOG,
+                BorderStyle = BorderStyle.None,
+                ReadOnly    = true,
+                ScrollBars  = RichTextBoxScrollBars.Vertical,
+                WordWrap    = false
             };
-            logCard.Controls.Add(logBox);
+            logInner.Controls.Add(logBox);
 
             Log("Win11 Optimizer ready. Select tweaks and click Run.", TEXTDIM);
+        }
+
+        // ── Docking versions of helpers ───────────────────────────────────
+
+        Panel MakeCardDock(string title)
+        {
+            var card = new Panel { Dock = DockStyle.Fill, BackColor = CARD, Margin = new Padding(4) };
+            card.Paint += (s, e) =>
+            {
+                using var pen = new Pen(BORDER);
+                e.Graphics.DrawRectangle(pen, 0, 0, card.Width - 1, card.Height - 1);
+                using var br = new LinearGradientBrush(
+                    new Rectangle(0, 0, card.Width, 2), ACCENT, ACCENT2, LinearGradientMode.Horizontal);
+                e.Graphics.FillRectangle(br, 0, 0, card.Width, 2);
+            };
+            var lbl = new Label
+            {
+                Text      = title,
+                Font      = new Font("Segoe UI", 7.5f, FontStyle.Bold),
+                ForeColor = TEXTDIM,
+                AutoSize  = true,
+                Location  = new Point(12, 10),
+                BackColor = CARD
+            };
+            card.Controls.Add(lbl);
+            return card;
+        }
+
+        CheckBox MakeCheckRowDock(TableLayoutPanel parent, int row, string title, string subtitle)
+        {
+            var cell = new Panel { Dock = DockStyle.Fill, BackColor = CARD };
+            var chk = new CheckBox
+            {
+                Text      = title,
+                Font      = FONT_LABEL,
+                ForeColor = TEXT,
+                AutoSize  = true,
+                Location  = new Point(6, 2),
+                BackColor = CARD,
+                FlatStyle = FlatStyle.Flat
+            };
+            chk.FlatAppearance.BorderColor        = BORDER;
+            chk.FlatAppearance.CheckedBackColor   = ACCENT;
+            chk.FlatAppearance.MouseOverBackColor = CARD;
+            var desc = new Label
+            {
+                Text      = subtitle,
+                Font      = FONT_BODY,
+                ForeColor = TEXTDIM,
+                AutoSize  = true,
+                Location  = new Point(26, 22),
+                BackColor = CARD
+            };
+            cell.Controls.Add(chk);
+            cell.Controls.Add(desc);
+            parent.Controls.Add(cell, 0, row);
+            return chk;
+        }
+
+        void AddInfoLineDock(Panel parent, Color col, string text)
+        {
+            var flow = parent.Controls.Count == 0
+                ? new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, BackColor = CARD, WrapContents = false }
+                : (FlowLayoutPanel)parent.Controls[0];
+            if (parent.Controls.Count == 0) parent.Controls.Add(flow);
+
+            flow.Controls.Add(new Label
+            {
+                Text      = text,
+                Font      = FONT_BODY,
+                ForeColor = col,
+                AutoSize  = true,
+                BackColor = CARD,
+                Margin    = new Padding(0, 2, 0, 2)
+            });
+        }
+
+        Label AddSummaryBoxDock(FlowLayoutPanel parent, Color col, string count, string title)
+        {
+            var box = new Panel
+            {
+                Size      = new Size(120, 80),
+                BackColor = BG,
+                Margin    = new Padding(0, 0, 16, 0)
+            };
+            box.Paint += (s, e) =>
+            {
+                using var pen = new Pen(col) { Width = 1.5f };
+                e.Graphics.DrawRectangle(pen, 0, 0, box.Width - 1, box.Height - 1);
+            };
+            var num = new Label
+            {
+                Text      = count,
+                Font      = new Font("Segoe UI", 22f, FontStyle.Bold),
+                ForeColor = col,
+                TextAlign = ContentAlignment.MiddleCenter,
+                Bounds    = new Rectangle(0, 6, 120, 38),
+                BackColor = BG
+            };
+            var sub = new Label
+            {
+                Text      = title,
+                Font      = FONT_BODY,
+                ForeColor = TEXTDIM,
+                TextAlign = ContentAlignment.MiddleCenter,
+                Bounds    = new Rectangle(0, 48, 120, 22),
+                BackColor = BG
+            };
+            box.Controls.Add(num);
+            box.Controls.Add(sub);
+            parent.Controls.Add(box);
+            return num;
         }
 
         // ── Helper: card panel ────────────────────────────────────────────
@@ -318,7 +527,7 @@ namespace Win11Optimizer
         void SetProgress(int done, int total)
         {
             if (InvokeRequired) { Invoke(new Action(() => SetProgress(done, total))); return; }
-            int w = total == 0 ? 0 : (int)(380.0 * done / total);
+            int w = total == 0 ? 0 : (int)((double)progressBar.Parent.Width * done / total);
             progressBar.Width = w;
             lblStatus.Text = total == 0 ? "Ready." : $"Running… {done}/{total}";
         }
