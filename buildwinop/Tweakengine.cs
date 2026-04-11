@@ -5,6 +5,7 @@ using System.IO;
 using System.Text.Json;
 using Microsoft.Win32;
 #nullable disable warnings
+#nullable disable
 
 namespace Win11Optimizer
 {
