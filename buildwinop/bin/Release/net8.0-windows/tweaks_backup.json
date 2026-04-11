@@ -1,0 +1,26 @@
+[
+  {
+    "Category": "Performance",
+    "KeyPath": "HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Power\\PowerThrottling",
+    "ValueName": "PowerThrottlingOff",
+    "ValueData": "1",
+    "ValueKind": "DWord",
+    "Existed": true
+  },
+  {
+    "Category": "Performance",
+    "KeyPath": "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Serialize",
+    "ValueName": "StartupDelayInMSec",
+    "ValueData": "0",
+    "ValueKind": "DWord",
+    "Existed": true
+  },
+  {
+    "Category": "Performance",
+    "KeyPath": "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\VisualEffects",
+    "ValueName": "VisualFXSetting",
+    "ValueData": "2",
+    "ValueKind": "DWord",
+    "Existed": true
+  }
+]
