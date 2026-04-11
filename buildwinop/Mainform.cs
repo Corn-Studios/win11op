@@ -880,7 +880,7 @@ namespace Win11Optimizer
             }
         }
 
-        static void LogCrash(Exception? ex)
+        static void LogCrash(Exception ex)
         {
             try
             {

@@ -5,7 +5,6 @@ using System.IO;
 using System.Text.Json;
 using Microsoft.Win32;
 #nullable disable warnings
-#nullable disable
 
 namespace Win11Optimizer
 {
@@ -17,7 +16,7 @@ namespace Win11Optimizer
         {
             public string  Name    { get; set; } = string.Empty;
             public bool    Success { get; set; }
-            public string? Error   { get; set; }
+            public string Error   { get; set; }
         }
 
         private static readonly List<TweakResult> _results = new();
