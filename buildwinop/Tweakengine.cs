@@ -59,6 +59,7 @@ namespace Win11Optimizer
                     "HKEY_CURRENT_USER"  => Registry.CurrentUser,
                     "HKEY_CLASSES_ROOT"  => Registry.ClassesRoot,
                     "HKEY_USERS"         => Registry.Users,
+                    _                    => null
                 };
                 if (root != null)
                 {
