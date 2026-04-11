@@ -30,6 +30,12 @@ Every registry change is backed up before being applied. After running a categor
 
 ---
 
+## Packaged Releases
+
+1. Install the [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
+2. Go to releases and download the .exe
+3. Run the exe as Administrator and you are good to go!
+
 ## Build from Source
 
 1. Install the [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
