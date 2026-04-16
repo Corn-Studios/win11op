@@ -16,7 +16,7 @@ namespace Win11Optimizer
         {
             public string  Name    { get; set; } = string.Empty;
             public bool    Success { get; set; }
-            public string? Error   { get; set; }
+            public string  Error   { get; set; }
         }
 
         private static readonly List<TweakResult> _results = new();
@@ -201,7 +201,7 @@ namespace Win11Optimizer
             {
                 var psi = new ProcessStartInfo
                 {
-                    FileName = "powershell.exe",
+                    FileName  = "powershell.exe",
                     Arguments = $"-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \"{script}\"",
                     UseShellExecute = false, CreateNoWindow = true,
                     RedirectStandardOutput = true, RedirectStandardError = true
@@ -228,8 +228,6 @@ namespace Win11Optimizer
 
         private static void RunCategory(string category, Action tweaks)
         {
-            // If a backup already exists for this category, don't overwrite it —
-            // that would back up already-tweaked values instead of original Windows defaults
             bool alreadyBacked = _appliedCategories.Contains(category);
             _currentCategory = alreadyBacked ? "" : category;
             tweaks();
@@ -239,9 +237,13 @@ namespace Win11Optimizer
         }
 
         // ── 1. PERFORMANCE ────────────────────────────────────────────────
+        // Tweak count: 9 original + 6 new = 15 total
+        // (MainForm tick count updated to 9 for the section header tick, 
+        //  actual results are tracked per-tweak as before)
 
         public static void ApplyPerformanceTweaks() => RunCategory("Performance", () =>
         {
+            // ── Original tweaks ───────────────────────────────────────────
             RunCommand("powercfg -setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c", "High Performance power plan");
             SetRegistry(@"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power\PowerThrottling",
                         "PowerThrottlingOff", 1, RegistryValueKind.DWord, "Disable Power Throttling");
@@ -255,6 +257,32 @@ namespace Win11Optimizer
             RunCommand("fsutil behavior set disable8dot3 1",      "Disable 8.3 filenames");
             RunCommand("powercfg -h off", "Disable hibernation");
             RunPowerShell("Disable-MMAgent -MemoryCompression", "Disable memory compression");
+
+            // ── NEW: CPU / timer tweaks ───────────────────────────────────
+            // Disable dynamic tick (forces constant high-res timer interrupts)
+            RunCommand("bcdedit /set disabledynamictick yes", "Disable dynamic tick (constant timer resolution)");
+
+            // Disable CPU core parking — keeps all cores active at all times
+            SetRegistry(@"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\0cc5b647-c1df-4637-891a-dec35c318583",
+                        "ValueMax", 0, RegistryValueKind.DWord, "Disable CPU core parking");
+
+            // Processor performance boost mode — always on
+            RunCommand("powercfg -setacvalueindex SCHEME_CURRENT SUB_PROCESSOR PERFBOOSTMODE 2", "CPU boost mode: aggressive");
+            RunCommand("powercfg -setdcvalueindex SCHEME_CURRENT SUB_PROCESSOR PERFBOOSTMODE 2", "CPU boost mode: aggressive (battery)");
+            RunCommand("powercfg -setactive SCHEME_CURRENT", "Apply power scheme changes");
+
+            // ── NEW: Disk / I-O tweaks ────────────────────────────────────
+            // Disable auto-defrag scheduled task (bad for SSDs, SysMain already disabled above)
+            DisableScheduledTask(@"\Microsoft\Windows\Defrag\ScheduledDefrag");
+
+            // Set I/O scheduler hint — prefer throughput on NTFS volumes
+            SetRegistry(@"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management",
+                        "IoPageLockLimit", 0, RegistryValueKind.DWord, "Remove I/O page lock limit");
+
+            // ── NEW: Animation / responsiveness extras ────────────────────
+            // Disable window animations, combo-box animations, smooth-scroll listboxes, etc.
+            SetRegistry(@"HKEY_CURRENT_USER\Control Panel\Desktop\WindowMetrics",
+                        "MinAnimate", "0", RegistryValueKind.String, "Disable minimize/maximize animations");
         });
 
         public static List<TweakResult> UndoPerformanceTweaks()
@@ -266,6 +294,8 @@ namespace Win11Optimizer
             RunCommand("fsutil behavior set disablelastaccess 0", "Re-enable NTFS last-access updates");
             RunCommand("powercfg -h on", "Re-enable hibernation");
             RunPowerShell("Enable-MMAgent -MemoryCompression", "Re-enable memory compression");
+            RunCommand("bcdedit /deletevalue disabledynamictick 2>nul", "Restore dynamic tick");
+            EnableScheduledTask(@"\Microsoft\Windows\Defrag\ScheduledDefrag");
             return r;
         }
 
