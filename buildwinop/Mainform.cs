@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
-using System.Drawing.Drawing2D;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -12,37 +11,238 @@ using System.Windows.Forms;
 
 namespace Win11Optimizer
 {
-    // ── Theme ─────────────────────────────────────────────────────────────
-    public class AppTheme
+    // ═══════════════════════════════════════════════════════════════════════
+    //  THEME
+    // ═══════════════════════════════════════════════════════════════════════
+    public static class Theme
     {
-        public Color BG, SURFACE, CARD, BORDER, ACCENT, ACCENT2, WARN, DANGER, TEXT, TEXTDIM;
-        public string Name;
-
-        public static AppTheme Dark => new AppTheme
-        {
-            Name = "Dark", BG = Color.FromArgb(10, 10, 14), SURFACE = Color.FromArgb(18, 18, 24),
-            CARD = Color.FromArgb(24, 24, 32), BORDER = Color.FromArgb(42, 42, 58),
-            ACCENT = Color.FromArgb(0, 210, 140), ACCENT2 = Color.FromArgb(0, 160, 255),
-            WARN = Color.FromArgb(255, 180, 0), DANGER = Color.FromArgb(255, 70, 70),
-            TEXT = Color.FromArgb(230, 230, 240), TEXTDIM = Color.FromArgb(120, 120, 140),
-        };
-        public static AppTheme Light => new AppTheme
-        {
-            Name = "Light", BG = Color.FromArgb(242, 243, 247), SURFACE = Color.FromArgb(255, 255, 255),
-            CARD = Color.FromArgb(250, 250, 253), BORDER = Color.FromArgb(210, 212, 225),
-            ACCENT = Color.FromArgb(0, 170, 110), ACCENT2 = Color.FromArgb(0, 120, 210),
-            WARN = Color.FromArgb(200, 130, 0), DANGER = Color.FromArgb(210, 50, 50),
-            TEXT = Color.FromArgb(20, 22, 35), TEXTDIM = Color.FromArgb(110, 115, 140),
-        };
+        public static readonly Color BG         = Color.FromArgb(13, 13, 18);
+        public static readonly Color SURFACE    = Color.FromArgb(22, 22, 30);
+        public static readonly Color SURFACE2   = Color.FromArgb(30, 30, 40);
+        public static readonly Color ACCENT     = Color.FromArgb(99, 102, 241);
+        public static readonly Color ACCENT_HOV = Color.FromArgb(129, 132, 255);
+        public static readonly Color SUCCESS    = Color.FromArgb(34, 197, 94);
+        public static readonly Color WARNING    = Color.FromArgb(251, 191, 36);
+        public static readonly Color DANGER     = Color.FromArgb(239, 68, 68);
+        public static readonly Color TEXT_PRI   = Color.FromArgb(240, 240, 255);
+        public static readonly Color TEXT_SEC   = Color.FromArgb(140, 140, 170);
+        public static readonly Color BORDER     = Color.FromArgb(40, 40, 58);
     }
 
-    // ── Windows version info (populated at startup) ───────────────────────
+    // ═══════════════════════════════════════════════════════════════════════
+    //  TWEAK CATALOG  (mirrors AppCatalog / AppEntry from App Downloader)
+    // ═══════════════════════════════════════════════════════════════════════
+    public class TweakEntry
+    {
+        public string Name        { get; set; }
+        public string Description { get; set; }
+        public string Category    { get; set; }
+        public string Icon        { get; set; }
+        public bool   IsAdvanced  { get; set; }
+        public bool   DefaultOn   { get; set; } = true;
+        public string AdvancedKey { get; set; }
+    }
+
+    public static class TweakCatalog
+    {
+        public static readonly List<TweakEntry> All = new List<TweakEntry>
+        {
+            // ── PERFORMANCE ───────────────────────────────────────────────
+            new TweakEntry { Category = "Performance", Icon = "⚡", DefaultOn = true,
+                Name = "High Performance Power Plan",
+                Description = "Switches power plan to maximum performance mode" },
+            new TweakEntry { Category = "Performance", Icon = "🔋", DefaultOn = true,
+                Name = "Disable Power Throttling",
+                Description = "Prevents Windows throttling background CPU usage" },
+            new TweakEntry { Category = "Performance", Icon = "🗂", DefaultOn = true,
+                Name = "Disable SysMain (Superfetch)",
+                Description = "Stops preloading rarely-used apps into RAM" },
+            new TweakEntry { Category = "Performance", Icon = "🔍", DefaultOn = true,
+                Name = "Disable Windows Search Indexer",
+                Description = "Removes background disk I/O from search indexing" },
+            new TweakEntry { Category = "Performance", Icon = "⏱", DefaultOn = true,
+                Name = "Remove Startup Delay",
+                Description = "Eliminates the artificial Explorer startup pause" },
+            new TweakEntry { Category = "Performance", Icon = "🖼", DefaultOn = true,
+                Name = "Visual Effects: Best Performance",
+                Description = "Turns off animations, shadows and fancy rendering" },
+            new TweakEntry { Category = "Performance", Icon = "📁", DefaultOn = true,
+                Name = "Disable NTFS Last-Access Timestamps",
+                Description = "Reduces filesystem writes on every file read" },
+            new TweakEntry { Category = "Performance", Icon = "📄", DefaultOn = true,
+                Name = "Disable 8.3 Filenames",
+                Description = "Removes legacy short filename generation on NTFS" },
+            new TweakEntry { Category = "Performance", Icon = "💤", DefaultOn = true,
+                Name = "Disable Hibernation",
+                Description = "Frees several GB of disk space, speeds shutdown" },
+            new TweakEntry { Category = "Performance", Icon = "🧠", DefaultOn = true,
+                Name = "Disable Memory Compression",
+                Description = "Reduces CPU overhead when RAM is under pressure" },
+
+            // ── PRIVACY ───────────────────────────────────────────────────
+            new TweakEntry { Category = "Privacy", Icon = "📡", DefaultOn = true,
+                Name = "Disable Telemetry",
+                Description = "Blocks Microsoft data collection at the registry level" },
+            new TweakEntry { Category = "Privacy", Icon = "🛑", DefaultOn = true,
+                Name = "Disable DiagTrack Service",
+                Description = "Stops the Connected User Experiences telemetry service" },
+            new TweakEntry { Category = "Privacy", Icon = "📢", DefaultOn = true,
+                Name = "Disable Advertising ID",
+                Description = "Prevents apps from accessing your ad tracking ID" },
+            new TweakEntry { Category = "Privacy", Icon = "🔎", DefaultOn = true,
+                Name = "Disable Bing in Start Menu",
+                Description = "Removes web search results from the Start search bar" },
+            new TweakEntry { Category = "Privacy", Icon = "🎙", DefaultOn = true,
+                Name = "Disable Cortana Consent",
+                Description = "Turns off Cortana data collection consent flag" },
+            new TweakEntry { Category = "Privacy", Icon = "📊", DefaultOn = true,
+                Name = "Disable Activity Feed",
+                Description = "Stops Windows logging app and file activity history" },
+            new TweakEntry { Category = "Privacy", Icon = "📍", DefaultOn = true,
+                Name = "Disable Location Tracking",
+                Description = "Blocks apps from accessing your physical location" },
+            new TweakEntry { Category = "Privacy", Icon = "📷", DefaultOn = true,
+                Name = "Block App Camera Access",
+                Description = "Prevents UWP apps from using the webcam by default" },
+            new TweakEntry { Category = "Privacy", Icon = "⚠", DefaultOn = true,
+                Name = "Disable Windows Error Reporting",
+                Description = "Stops crash dumps and reports being sent to Microsoft" },
+            new TweakEntry { Category = "Privacy", Icon = "🛡", DefaultOn = true,
+                Name = "Disable SmartScreen (Explorer)",
+                Description = "Removes SmartScreen cloud checks in File Explorer" },
+            new TweakEntry { Category = "Privacy", Icon = "🗓", DefaultOn = true,
+                Name = "Disable Scheduled Telemetry Tasks",
+                Description = "Kills CEIP, AppraiserV2, Proxy and DiskDiag data tasks" },
+            new TweakEntry { Category = "Privacy", Icon = "👁", DefaultOn = true,
+                Name = "Disable App Launch Tracking",
+                Description = "Stops Windows logging which apps you open and when" },
+            new TweakEntry { Category = "Privacy", Icon = "💬", DefaultOn = true,
+                Name = "Disable Feedback Requests",
+                Description = "Prevents Windows asking you to rate/review features" },
+
+            // ── RESPONSIVENESS ────────────────────────────────────────────
+            new TweakEntry { Category = "Responsiveness", Icon = "🖱", DefaultOn = true,
+                Name = "Instant Menu Show",
+                Description = "Sets menu open delay to 0 ms for snappier menus" },
+            new TweakEntry { Category = "Responsiveness", Icon = "⚡", DefaultOn = true,
+                Name = "Fast App Kill Timeout",
+                Description = "Reduces wait time before force-killing frozen apps" },
+            new TweakEntry { Category = "Responsiveness", Icon = "⏹", DefaultOn = true,
+                Name = "Fast Service Kill Timeout",
+                Description = "Cuts shutdown wait for slow-stopping services" },
+            new TweakEntry { Category = "Responsiveness", Icon = "🔚", DefaultOn = true,
+                Name = "Auto End Tasks on Shutdown",
+                Description = "Automatically kills hung apps instead of prompting" },
+            new TweakEntry { Category = "Responsiveness", Icon = "⏱", DefaultOn = true,
+                Name = "Platform Tick (High-Res Timer)",
+                Description = "Forces constant-rate high-resolution system timer" },
+            new TweakEntry { Category = "Responsiveness", Icon = "💡", DefaultOn = true,
+                Name = "Disable Windows Tips",
+                Description = "Stops the 'Did you know...' popups and suggestions" },
+            new TweakEntry { Category = "Responsiveness", Icon = "📰", DefaultOn = true,
+                Name = "Disable Suggested Content",
+                Description = "Removes app install suggestions from the Start menu" },
+
+            // ── GAMING ────────────────────────────────────────────────────
+            new TweakEntry { Category = "Gaming", Icon = "🖥", DefaultOn = false,
+                Name = "Enable HAGS",
+                Description = "Hardware-Accelerated GPU Scheduling — reduces GPU latency" },
+            new TweakEntry { Category = "Gaming", Icon = "🎮", DefaultOn = false,
+                Name = "Enable Game Mode",
+                Description = "Tells Windows to prioritize foreground game processes" },
+            new TweakEntry { Category = "Gaming", Icon = "🖱", DefaultOn = false,
+                Name = "Disable Mouse Acceleration",
+                Description = "Removes pointer precision for 1:1 raw mouse input" },
+            new TweakEntry { Category = "Gaming", Icon = "⚡", DefaultOn = false,
+                Name = "CPU Foreground Priority Boost",
+                Description = "Increases CPU time slice for the active window/game" },
+            new TweakEntry { Category = "Gaming", Icon = "📹", DefaultOn = false,
+                Name = "Disable Game DVR / Capture",
+                Description = "Turns off Xbox Game Bar background recording" },
+            new TweakEntry { Category = "Gaming", Icon = "🪟", DefaultOn = false,
+                Name = "Disable Fullscreen Optimisations",
+                Description = "Forces exclusive fullscreen for lower input latency" },
+
+            // ── NETWORK ───────────────────────────────────────────────────
+            new TweakEntry { Category = "Network", Icon = "📶", DefaultOn = false,
+                Name = "Disable Nagle's Algorithm",
+                Description = "Reduces TCP packet buffering — lowers game ping" },
+            new TweakEntry { Category = "Network", Icon = "🔁", DefaultOn = false,
+                Name = "Enable Receive-Side Scaling",
+                Description = "Spreads network processing across CPU cores" },
+            new TweakEntry { Category = "Network", Icon = "🎛", DefaultOn = false,
+                Name = "TCP Auto-Tuning: Normal",
+                Description = "Enables adaptive TCP receive buffer scaling" },
+            new TweakEntry { Category = "Network", Icon = "🚦", DefaultOn = false,
+                Name = "Disable Network Throttling Index",
+                Description = "Removes multimedia network rate caps" },
+            new TweakEntry { Category = "Network", Icon = "🏎", DefaultOn = false,
+                Name = "Max Multimedia Responsiveness",
+                Description = "Sets SystemResponsiveness to 0 for games/audio" },
+
+            // ── BLOATWARE ─────────────────────────────────────────────────
+            new TweakEntry { Category = "Bloatware", Icon = "📰", DefaultOn = false,
+                Name = "Remove Bing News & Weather",
+                Description = "Uninstalls BingNews and BingWeather UWP packages" },
+            new TweakEntry { Category = "Bloatware", Icon = "🎵", DefaultOn = false,
+                Name = "Remove Zune Music / Video",
+                Description = "Removes the legacy Groove Music and Movies & TV apps" },
+            new TweakEntry { Category = "Bloatware", Icon = "♟", DefaultOn = false,
+                Name = "Remove Solitaire Collection",
+                Description = "Uninstalls the ad-supported Solitaire game suite" },
+            new TweakEntry { Category = "Bloatware", Icon = "🗺", DefaultOn = false,
+                Name = "Remove Windows Maps",
+                Description = "Strips the built-in Maps UWP application" },
+            new TweakEntry { Category = "Bloatware", Icon = "📱", DefaultOn = false,
+                Name = "Remove Phone Link / Your Phone",
+                Description = "Removes the Android phone companion app" },
+            new TweakEntry { Category = "Bloatware", Icon = "🎬", DefaultOn = false,
+                Name = "Remove Clipchamp",
+                Description = "Removes the bundled Microsoft video editor" },
+            new TweakEntry { Category = "Bloatware", Icon = "🎮", DefaultOn = false,
+                Name = "Remove Xbox Apps & Overlays",
+                Description = "Strips Xbox TCUI, App, GameOverlay, GamingOverlay" },
+            new TweakEntry { Category = "Bloatware", Icon = "🛒", DefaultOn = false,
+                Name = "Remove Third-Party Ad Tiles",
+                Description = "Removes LinkedIn, Disney, Spotify, TikTok, Instagram tiles" },
+            new TweakEntry { Category = "Bloatware", Icon = "📦", DefaultOn = false,
+                Name = "Remove Office Hub & OneNote",
+                Description = "Uninstalls the bundled Office Hub and OneNote UWP apps" },
+            new TweakEntry { Category = "Bloatware", Icon = "🗃", DefaultOn = false,
+                Name = "Remove 3D Viewer & Print 3D",
+                Description = "Removes legacy 3D apps nobody asked for" },
+
+            // ── ADVANCED ──────────────────────────────────────────────────
+            new TweakEntry { Category = "Advanced", Icon = "⚙", DefaultOn = false, IsAdvanced = true, AdvancedKey = "ProcessorScheduling",
+                Name = "Processor Scheduling: Programs",
+                Description = "Win32PrioritySeparation=38, max foreground CPU boost" },
+            new TweakEntry { Category = "Advanced", Icon = "⏱", DefaultOn = false, IsAdvanced = true, AdvancedKey = "DisableDynamicTick",
+                Name = "Disable Dynamic Tick",
+                Description = "Forces constant high-res IRQ8 timer, reduces micro-stutter" },
+            new TweakEntry { Category = "Advanced", Icon = "🔥", DefaultOn = false, IsAdvanced = true, AdvancedKey = "DisableCpuThrottling",
+                Name = "Disable CPU Throttling",
+                Description = "Prevents Windows pulling background process CPU clocks" },
+            new TweakEntry { Category = "Advanced", Icon = "💾", DefaultOn = false, IsAdvanced = true, AdvancedKey = "EnableTrim",
+                Name = "Ensure SSD TRIM Enabled",
+                Description = "Sets disabledeletenotify=0, keeps SSD write speeds consistent" },
+            new TweakEntry { Category = "Advanced", Icon = "🎨", DefaultOn = false, IsAdvanced = true, AdvancedKey = "AggressiveAnimations",
+                Name = "Aggressive Animation Disabling",
+                Description = "Kills UserPreferencesMask, TaskbarAnim, MinAnimate bits" },
+        };
+
+        public static IEnumerable<TweakEntry> ForCategory(string cat) =>
+            cat == "All" ? All : All.Where(t => t.Category == cat);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  WINDOWS VERSION
+    // ═══════════════════════════════════════════════════════════════════════
     public static class WinVersion
     {
-        public static int    Build         { get; private set; }
-        public static string DisplayName   { get; private set; } = "Unknown";
-        public static bool   IsWin11       => Build >= 22000;
-        public static bool   IsWin10       => Build >= 10240 && Build < 22000;
+        public static int    Build       { get; private set; }
+        public static string DisplayName { get; private set; } = "Unknown";
+        public static bool   IsWin11     => Build >= 22000;
+        public static bool   IsWin10     => Build >= 10240 && Build < 22000;
 
         public static void Detect()
         {
@@ -52,12 +252,9 @@ namespace Win11Optimizer
                     @"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion",
                     "CurrentBuildNumber", "0")?.ToString() ?? "0";
                 Build = int.TryParse(raw, out int b) ? b : 0;
-
                 string dv = Microsoft.Win32.Registry.GetValue(
                     @"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion",
                     "DisplayVersion", "")?.ToString() ?? "";
-
-                // ProductName still says "Windows 10" on Win11 — derive from build instead
                 string winName = Build >= 22000 ? "Windows 11" : "Windows 10";
                 DisplayName = string.IsNullOrWhiteSpace(dv)
                     ? $"{winName} (Build {Build})"
@@ -67,21 +264,23 @@ namespace Win11Optimizer
         }
     }
 
-    // ── Change log (persisted to disk) ────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════════════
+    //  CHANGE LOG
+    // ═══════════════════════════════════════════════════════════════════════
     public static class ChangeLog
     {
-        static readonly string LogFile = Path.Combine(
-            AppDomain.CurrentDomain.BaseDirectory, "changelog.json");
+        static readonly string LogFile =
+            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "changelog.json");
 
         public class RunEntry
         {
-            public string Timestamp   { get; set; } = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-            public string WindowsVer  { get; set; } = WinVersion.DisplayName;
-            public string Categories  { get; set; } = "";
-            public int    Passed      { get; set; }
-            public int    Failed      { get; set; }
-            public bool   RestorePoint{ get; set; }
-            public List<string> Details { get; set; } = new();
+            public string       Timestamp    { get; set; } = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            public string       WindowsVer   { get; set; } = WinVersion.DisplayName;
+            public string       Categories   { get; set; } = "";
+            public int          Passed       { get; set; }
+            public int          Failed       { get; set; }
+            public bool         RestorePoint { get; set; }
+            public List<string> Details      { get; set; } = new();
         }
 
         static List<RunEntry> _entries = new();
@@ -101,13 +300,18 @@ namespace Win11Optimizer
 
         public static void AddEntry(RunEntry entry)
         {
-            _entries.Insert(0, entry); // newest first
+            _entries.Insert(0, entry);
             Save();
         }
 
         static void Save()
         {
-            try { File.WriteAllText(LogFile, System.Text.Json.JsonSerializer.Serialize(_entries, new System.Text.Json.JsonSerializerOptions { WriteIndented = true })); }
+            try
+            {
+                File.WriteAllText(LogFile,
+                    System.Text.Json.JsonSerializer.Serialize(_entries,
+                        new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+            }
             catch { }
         }
 
@@ -118,919 +322,1153 @@ namespace Win11Optimizer
         }
     }
 
+    public static class AdminWarning { public static bool Show { get; set; } = false; }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  MAIN FORM
+    // ═══════════════════════════════════════════════════════════════════════
     public class MainForm : Form
     {
-        AppTheme T = AppTheme.Dark;
+        // ── Layout ─────────────────────────────────────────────────────────
+        private Panel _topBar;
+        private Panel _sidebar;
+        private Panel _mainArea;
+        private Panel _bottomBar;
+        private Panel _logPanel;
 
-        static readonly Font FONT_LABEL = new Font("Segoe UI", 12f, FontStyle.Bold);
-        static readonly Font FONT_BODY  = new Font("Segoe UI", 11f, FontStyle.Regular);
-        static readonly Font FONT_LOG   = new Font("Consolas", 11f, FontStyle.Regular);
+        // ── Top bar ────────────────────────────────────────────────────────
+        private Label _winVerBadge;
+        private Label _adminBadge;
 
-#pragma warning disable CS8618
-        CheckBox chkPerf, chkPrivacy, chkResponsive, chkGaming, chkNetwork, chkBloat, chkAdvanced;
-        CheckBox chkRestorePoint;
-        GlowButton btnRunSelected, btnRunAll;
-        DarkRichTextBox logBox;
-        Panel progressBar;
-        Label lblStatus;
-        Panel sideAccent;
-        Label _passLabel, _failLabel;
-        ThemeToggleButton _themeBtn;
-        GlowButton _undoPerf, _undoPrivacy, _undoResponsive, _undoGaming, _undoNetwork, _undoAdvanced;
-        Label _winVerLabel;
-        TabControl _tabControl;
-        Panel _changelogPanel;
-#pragma warning restore CS8618
-
-        HashSet<string> _selectedAdvancedTweaks = new();
-        List<Action>    _themeApplicators        = new();
-        int _totalTweaks, _doneTweaks;
-
-        public MainForm() => InitUI();
-
-        // ── Theme ─────────────────────────────────────────────────────────
-        void ApplyTheme()
+        // ── Sidebar ────────────────────────────────────────────────────────
+        private static readonly string[] SidebarCategories =
         {
-            BackColor = T.BG; ForeColor = T.TEXT;
-            sideAccent.BackColor = T.ACCENT;
-            logBox.BackColor = T.BG; logBox.ForeColor = T.ACCENT;
-            lblStatus.BackColor = T.BG; lblStatus.ForeColor = T.TEXTDIM;
-            progressBar.BackColor = T.ACCENT;
-            if (progressBar.Parent != null) progressBar.Parent.BackColor = T.BORDER;
-            foreach (var a in _themeApplicators) a();
-            foreach (Control c in GetAllControls(this))
+            "All", "Performance", "Privacy", "Responsiveness",
+            "Gaming", "Network", "Bloatware", "Advanced", "History"
+        };
+
+        private static readonly Dictionary<string, string> CatEmoji = new()
+        {
+            ["All"]            = "🏠",
+            ["Performance"]    = "⚡",
+            ["Privacy"]        = "🔒",
+            ["Responsiveness"] = "🖥",
+            ["Gaming"]         = "🎮",
+            ["Network"]        = "🌐",
+            ["Bloatware"]      = "🗑",
+            ["Advanced"]       = "⚠",
+            ["History"]        = "📋",
+        };
+
+        private string _activeCategory = "All";
+
+        // ── Grid ───────────────────────────────────────────────────────────
+        private FlowLayoutPanel          _tileGrid;
+        private readonly List<TweakTile> _tiles = new();
+        private HashSet<string>          _advancedKeys = new();
+
+        // ── Bottom bar ─────────────────────────────────────────────────────
+        private Label      _statusLabel;
+        private Label      _selCountLabel;
+        private Panel      _progOuter;
+        private Panel      _progInner;
+        private FlatButton _runBtn;
+        private FlatButton _undoBtn;
+        private FlatButton _clearBtn;
+        private CheckBox   _restoreChk;
+
+        // ── History ────────────────────────────────────────────────────────
+        private Panel _histPanel;
+
+        // ── Log ────────────────────────────────────────────────────────────
+        private RichTextBox _logBox;
+
+        // ── State ──────────────────────────────────────────────────────────
+        private bool _isRunning = false;
+        private int  _totalTweaks, _doneTweaks;
+
+        public MainForm()
+        {
+            InitUI();
+            PopulateGrid("All");
+            UpdateSelCount();
+            if (AdminWarning.Show) _adminBadge.Visible = true;
+        }
+
+        // ─────────────────────────────────────────────────────────────────
+        //  INIT
+        // ─────────────────────────────────────────────────────────────────
+        private void InitUI()
+        {
+            Text            = "Win11 Optimizer";
+            Size            = new Size(1200, 760);
+            MinimumSize     = new Size(960, 620);
+            BackColor       = Theme.BG;
+            ForeColor       = Theme.TEXT_PRI;
+            Font            = new Font("Segoe UI", 9f);
+            StartPosition   = FormStartPosition.CenterScreen;
+            FormBorderStyle = FormBorderStyle.Sizable;
+
+            BuildTopBar();
+            BuildSidebar();
+            BuildMainArea();
+            BuildBottomBar();
+            BuildLogPanel();
+
+            // Dock-based layout: Top -> Bottom -> Left -> Fill
+            // This is the only reliable way to get FlowLayoutPanel wrapping right.
+            _topBar.Dock     = DockStyle.Top;
+            _bottomBar.Dock  = DockStyle.Bottom;
+            _sidebar.Dock    = DockStyle.Left;
+            _mainArea.Dock   = DockStyle.Fill;
+            _logPanel.Dock   = DockStyle.None; // manually positioned inside LayoutAll
+
+            // Add in correct dock order (Bottom before Fill, Top last wins)
+            Controls.Add(_mainArea);
+            Controls.Add(_sidebar);
+            Controls.Add(_bottomBar);
+            Controls.Add(_topBar);
+            Controls.Add(_logPanel);
+        }
+
+        private void LayoutAll()
+        {
+            // Dock handles all the main panels. We only need to manually
+            // position the log overlay panel at the bottom of the main area.
+            if (_logPanel.Visible)
             {
-                if (c is GlowButton gb)       gb.ApplyTheme(T);
-                if (c is ThemeToggleButton tb) tb.IsDark = T.Name == "Dark";
+                int logH  = _logPanel.Height;
+                int sideW = _sidebar.Width;
+                int top   = _topBar.Height;
+                int botY  = ClientSize.Height - _bottomBar.Height - logH;
+                int logW  = ClientSize.Width - sideW;
+                _logPanel.SetBounds(sideW, botY, logW, logH);
+                _logPanel.BringToFront();
+                // Shrink main area to make room for log
+                _mainArea.Padding = new Padding(0, 0, 0, logH);
             }
-            RefreshChangelogTab();
-            Invalidate(true);
-        }
-
-        IEnumerable<Control> GetAllControls(Control root)
-        {
-            foreach (Control c in root.Controls) { yield return c; foreach (var ch in GetAllControls(c)) yield return ch; }
-        }
-
-        void InitUI()
-        {
-            Text = "Win11 Optimizer";
-            Size = new Size(900, 780); MinimumSize = new Size(820, 740);
-            StartPosition = FormStartPosition.CenterScreen;
-            BackColor = T.BG; ForeColor = T.TEXT; Font = FONT_BODY;
-            FormBorderStyle = FormBorderStyle.Sizable; MaximizeBox = true;
-
-            sideAccent = new Panel { Dock = DockStyle.Left, Width = 4, BackColor = T.ACCENT };
-            Controls.Add(sideAccent);
-
-            // ── Outer layout: header / tab body / log ─────────────────────
-            var outer = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, BackColor = T.BG };
-            outer.RowStyles.Add(new RowStyle(SizeType.Absolute, 100));  // header
-            outer.RowStyles.Add(new RowStyle(SizeType.Percent, 100));   // tab body
-            outer.RowStyles.Add(new RowStyle(SizeType.Absolute, 210));  // log
-            Controls.Add(outer);
-            _themeApplicators.Add(() => outer.BackColor = T.BG);
-
-            // ── Header ────────────────────────────────────────────────────
-            var header = new Panel { Dock = DockStyle.Fill, BackColor = T.SURFACE };
-            _themeApplicators.Add(() => header.BackColor = T.SURFACE);
-            header.Paint += (s, e) =>
+            else
             {
-                var g = e.Graphics;
-                g.SmoothingMode = SmoothingMode.AntiAlias;
-                g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
-                using var br = new LinearGradientBrush(new Rectangle(0, header.Height - 2, header.Width, 2), T.ACCENT, T.ACCENT2, LinearGradientMode.Horizontal);
-                g.FillRectangle(br, 0, header.Height - 2, header.Width, 2);
-                float ts = Math.Max(14f, header.Height * 0.28f), ss = Math.Max(8f, header.Height * 0.13f);
-                using var tf = new Font("Segoe UI", ts, FontStyle.Bold);
-                using var sf = new Font("Segoe UI", ss, FontStyle.Regular);
-                using var tb2 = new SolidBrush(T.TEXT); using var db = new SolidBrush(T.TEXTDIM);
-                g.DrawString("WIN11  OPTIMIZER", tf, tb2, new PointF(20, header.Height * 0.10f));
-                g.DrawString("Performance · Privacy · Gaming · Network", sf, db, new PointF(24, header.Height * 0.58f));
+                _mainArea.Padding = new Padding(0);
+            }
+        }
+
+        // ─────────────────────────────────────────────────────────────────
+        //  TOP BAR
+        // ─────────────────────────────────────────────────────────────────
+        private void BuildTopBar()
+        {
+            _topBar = new Panel { BackColor = Theme.SURFACE, Height = 60 };
+            _topBar.Paint += (s, e) =>
+            {
+                using var p = new Pen(Theme.BORDER);
+                e.Graphics.DrawLine(p, 0, _topBar.Height - 1, _topBar.Width, _topBar.Height - 1);
             };
 
-            // Windows version badge
-            _winVerLabel = new Label
+            var titleLbl = new Label
             {
-                Font = new Font("Segoe UI", 8.5f, FontStyle.Bold),
-                AutoSize = true, BackColor = T.SURFACE,
-                Anchor = AnchorStyles.Top | AnchorStyles.Right
+                Text      = "⚡  Win11 Optimizer",
+                Font      = new Font("Segoe UI Semibold", 13f),
+                ForeColor = Theme.TEXT_PRI,
+                AutoSize  = true,
+                Location  = new Point(18, 17)
             };
-            header.Controls.Add(_winVerLabel);
-            header.SizeChanged += (s, e) => _winVerLabel.Location = new Point(
-                header.Width - _winVerLabel.PreferredWidth - 14, _themeBtn.Bottom + 4);
-            Load += (s, e) => _winVerLabel.Location = new Point(
-                header.Width - _winVerLabel.PreferredWidth - 14, _themeBtn.Bottom + 4);
-            _themeApplicators.Add(() => { _winVerLabel.ForeColor = WinVersion.IsWin11 ? T.ACCENT : T.WARN; _winVerLabel.BackColor = T.SURFACE; });
-            UpdateWinVerLabel();
 
-            // Theme toggle
-            _themeBtn = new ThemeToggleButton { IsDark = true, Size = new Size(80, 34), Anchor = AnchorStyles.Top | AnchorStyles.Right };
-            _themeBtn.Click += (s, e) => { T = T.Name == "Dark" ? AppTheme.Light : AppTheme.Dark; _themeBtn.IsDark = T.Name == "Dark"; ApplyTheme(); };
-            header.SizeChanged += (s, e) => _themeBtn.Location = new Point(header.Width - _themeBtn.Width - 14, (header.Height - _themeBtn.Height) / 2);
-            header.Controls.Add(_themeBtn);
-            outer.Controls.Add(header, 0, 0);
-
-            // ── Tab control ───────────────────────────────────────────────
-            _tabControl = new TabControl
+            _winVerBadge = new Label
             {
-                Dock = DockStyle.Fill,
-                Font = new Font("Segoe UI", 10f, FontStyle.Bold),
-                Padding = new Point(14, 6)
+                AutoSize  = true,
+                Font      = new Font("Segoe UI", 8.5f),
+                Location  = new Point(270, 21),
+                ForeColor = WinVersion.IsWin11 ? Theme.SUCCESS : Theme.WARNING,
+                Text      = (WinVersion.IsWin11 ? "✔" : "⚠") + $"  {WinVersion.DisplayName}"
             };
-            _themeApplicators.Add(() =>
+
+            _adminBadge = new Label
             {
-                _tabControl.BackColor = T.BG;
-                foreach (TabPage tp in _tabControl.TabPages) tp.BackColor = T.BG;
-            });
+                Text      = "⚠  Not running as Administrator — some tweaks may fail",
+                AutoSize  = true,
+                Font      = new Font("Segoe UI", 8.5f),
+                ForeColor = Theme.WARNING,
+                Location  = new Point(18, 40),
+                Visible   = false
+            };
 
-            var tweaksPage   = new TabPage("  ⚡ Tweaks  ")   { BackColor = T.BG, BorderStyle = BorderStyle.None };
-            var changelogPage = new TabPage("  📋 History  ") { BackColor = T.BG, BorderStyle = BorderStyle.None };
-            _tabControl.TabPages.Add(tweaksPage);
-            _tabControl.TabPages.Add(changelogPage);
-            outer.Controls.Add(_tabControl, 0, 1);
+            var ghLink = new LinkLabel
+            {
+                Text             = "⭐  github.com/ConnorCorn07/win11op",
+                Font             = new Font("Segoe UI", 8.5f),
+                AutoSize         = true,
+                BackColor        = Theme.SURFACE,
+                LinkColor        = Theme.TEXT_SEC,
+                ActiveLinkColor  = Theme.ACCENT,
+                VisitedLinkColor = Theme.TEXT_SEC,
+                LinkBehavior     = LinkBehavior.HoverUnderline
+            };
+            ghLink.Click += (s, e) => Process.Start(new ProcessStartInfo
+                { FileName = "https://github.com/ConnorCorn07/win11op", UseShellExecute = true });
+            _topBar.SizeChanged += (s, e) =>
+                ghLink.Location = new Point(_topBar.Width - ghLink.PreferredWidth - 18, 20);
 
-            BuildTweaksTab(tweaksPage);
-            BuildChangelogTab(changelogPage);
-
-            // ── Log box ───────────────────────────────────────────────────
-            var logCard  = MakeCardDock("OUTPUT LOG");
-            outer.Controls.Add(logCard, 0, 2);
-            var logInner = new Panel { Dock = DockStyle.Fill, BackColor = T.BG, Padding = new Padding(8, 36, 8, 8) };
-            _themeApplicators.Add(() => logInner.BackColor = T.BG);
-            logCard.Controls.Add(logInner);
-            logBox = new DarkRichTextBox { Dock = DockStyle.Fill, BackColor = T.BG, ForeColor = T.ACCENT, Font = FONT_LOG, BorderStyle = BorderStyle.None, ReadOnly = true, ScrollBars = RichTextBoxScrollBars.Both };
-
-            // ── Startup messages ──────────────────────────────────────────
-            Log($"Win11 Optimizer ready  ·  {WinVersion.DisplayName}", T.TEXTDIM);
-            if (!WinVersion.IsWin11 && !WinVersion.IsWin10)
-                Log("⚠  Unrecognised Windows version — some tweaks may not apply.", T.WARN);
+            _topBar.Controls.AddRange(new Control[]
+                { titleLbl, _winVerBadge, _adminBadge, ghLink });
         }
 
-        void UpdateWinVerLabel()
+        // ─────────────────────────────────────────────────────────────────
+        //  SIDEBAR
+        // ─────────────────────────────────────────────────────────────────
+        private void BuildSidebar()
         {
-            if (_winVerLabel == null) return;
-            string icon = WinVersion.IsWin11 ? "✔" : WinVersion.IsWin10 ? "⚠" : "?";
-            _winVerLabel.Text = $"{icon}  {WinVersion.DisplayName}";
-            _winVerLabel.ForeColor = WinVersion.IsWin11 ? T.ACCENT : T.WARN;
-        }
-
-        // ── Tweaks tab ────────────────────────────────────────────────────
-        void BuildTweaksTab(TabPage page)
-        {
-            var body = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, BackColor = T.BG, Padding = new Padding(8) };
-            body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-            body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-            page.Controls.Add(body);
-            _themeApplicators.Add(() => body.BackColor = T.BG);
-
-            // Left column
-            var leftCol = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, BackColor = T.BG, Padding = new Padding(0, 0, 4, 0) };
-            leftCol.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            leftCol.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));  // restore point checkbox
-            leftCol.RowStyles.Add(new RowStyle(SizeType.Absolute, 54));  // run buttons
-            leftCol.RowStyles.Add(new RowStyle(SizeType.Absolute, 50));  // progress
-            leftCol.RowCount = 4;
-            body.Controls.Add(leftCol, 0, 0);
-            _themeApplicators.Add(() => leftCol.BackColor = T.BG);
-
-            // Tweaks card — 7 rows
-            var selectCard = MakeCardDock("SELECT TWEAKS");
-            leftCol.Controls.Add(selectCard, 0, 0);
-            var checkContainer = new Panel { Dock = DockStyle.Fill, BackColor = T.CARD, Padding = new Padding(10, 34, 10, 0) };
-            _themeApplicators.Add(() => checkContainer.BackColor = T.CARD);
-            selectCard.Controls.Add(checkContainer);
-
-            var checkLayout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 7, BackColor = T.CARD };
-            _themeApplicators.Add(() => checkLayout.BackColor = T.CARD);
-            for (int i = 0; i < 7; i++) checkLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100f / 7));
-            checkContainer.Controls.Add(checkLayout);
-
-            chkPerf       = MakeCheckRowDock(checkLayout, 0, "⚡  Performance",        "Power plan, NTFS, visual effects, startup",   "Performance",    out _undoPerf);
-            chkPrivacy    = MakeCheckRowDock(checkLayout, 1, "🔒  Privacy & Telemetry", "Disable tracking, ad ID, data collection",    "Privacy",         out _undoPrivacy);
-            chkResponsive = MakeCheckRowDock(checkLayout, 2, "🖥  Responsiveness",      "Menu speed, shutdown timers, high-res clock",  "Responsiveness",  out _undoResponsive);
-            chkGaming     = MakeCheckRowDock(checkLayout, 3, "🎮  Gaming",              "HAGS, Game Mode, priority, DVR off",           "Gaming",          out _undoGaming);
-            chkNetwork    = MakeCheckRowDock(checkLayout, 4, "🌐  Network",             "Nagle off, TCP tuning, throttle index",        "Network",         out _undoNetwork);
-            chkBloat      = MakeCheckRowDock(checkLayout, 5, "🗑  Remove Bloatware",    "Strips pre-installed junk & ads",              "Bloatware",       out _);
-            chkAdvanced   = MakeCheckRowDock(checkLayout, 6, "⚠  Advanced Tweaks",     "CPU scheduling, timer res, TRIM, animations",  "Advanced",        out _undoAdvanced, isAdvanced: true);
-            chkAdvanced.Checked = false;
-            chkPerf.Checked = chkPrivacy.Checked = chkResponsive.Checked = true;
-
-            chkAdvanced.CheckedChanged += (s, e) =>
+            _sidebar = new Panel { BackColor = Theme.SURFACE, Width = 200 };
+            _sidebar.Paint += (s, e) =>
             {
-                if (!chkAdvanced.Checked) return;
-                var dlg = new AdvancedTweakDialog(T);
-                if (dlg.ShowDialog(this) == DialogResult.OK)
+                using var p = new Pen(Theme.BORDER);
+                e.Graphics.DrawLine(p, _sidebar.Width - 1, 0, _sidebar.Width - 1, _sidebar.Height);
+            };
+
+            var hdr = new Label
+            {
+                Text      = "CATEGORIES",
+                Font      = new Font("Segoe UI", 7.5f, FontStyle.Bold),
+                ForeColor = Theme.TEXT_SEC,
+                AutoSize  = true,
+                Location  = new Point(14, 14)
+            };
+            _sidebar.Controls.Add(hdr);
+
+            int y = 38;
+            foreach (var cat in SidebarCategories)
+            {
+                // Divider before History
+                if (cat == "History")
                 {
-                    _selectedAdvancedTweaks = dlg.SelectedTweaks;
-                    if (_selectedAdvancedTweaks.Count == 0) { chkAdvanced.Checked = false; Log("Advanced: no tweaks selected.", T.TEXTDIM); }
-                    else Log($"Advanced queued: {string.Join(", ", _selectedAdvancedTweaks)}", T.WARN);
+                    var div = new Panel
+                    {
+                        BackColor = Theme.BORDER,
+                        Bounds    = new Rectangle(8, y + 2, 184, 1)
+                    };
+                    _sidebar.Controls.Add(div);
+                    y += 10;
                 }
-                else { chkAdvanced.Checked = false; Log("Advanced tweaks cancelled.", T.TEXTDIM); }
-            };
 
-            _undoPerf.Click       += async (s, e) => await RunUndo("Performance",    TweakEngine.UndoPerformanceTweaks,    _undoPerf);
-            _undoPrivacy.Click    += async (s, e) => await RunUndo("Privacy",        TweakEngine.UndoPrivacyTweaks,        _undoPrivacy);
-            _undoResponsive.Click += async (s, e) => await RunUndo("Responsiveness", TweakEngine.UndoResponsivenessTweaks, _undoResponsive);
-            _undoGaming.Click     += async (s, e) => await RunUndo("Gaming",         TweakEngine.UndoGamingTweaks,         _undoGaming);
-            _undoNetwork.Click    += async (s, e) => await RunUndo("Network",        TweakEngine.UndoNetworkTweaks,        _undoNetwork);
-            _undoAdvanced.Click   += async (s, e) => await RunUndo("Advanced",       TweakEngine.UndoAdvancedTweaks,       _undoAdvanced);
+                var btn = MakeSidebarBtn(cat);
+                btn.SetBounds(8, y, 184, 36);
+                _sidebar.Controls.Add(btn);
+                y += 38;
+            }
 
-            TweakEngine.LoadBackups();
-            RefreshUndoButtons();
+            y += 8;
+            var selAll = new FlatButton("✔ Select All", Theme.ACCENT);
+            selAll.SetBounds(8, y, 88, 28);
+            selAll.Click += (s, e) => SetAllInView(true);
 
-            // ── Restore Point checkbox row ────────────────────────────────
-            var rpRow = new Panel { Dock = DockStyle.Fill, BackColor = T.BG, Padding = new Padding(2, 4, 2, 0) };
-            _themeApplicators.Add(() => rpRow.BackColor = T.BG);
-            chkRestorePoint = new CheckBox
-            {
-                Text      = "🛡  Create Restore Point before running",
-                Font      = new Font("Segoe UI", 10f, FontStyle.Regular),
-                ForeColor = T.ACCENT,
-                AutoSize  = true, Checked = true,
-                Location  = new Point(4, 8),
-                BackColor = T.BG,
-                FlatStyle = FlatStyle.Flat
-            };
-            chkRestorePoint.FlatAppearance.BorderColor        = T.ACCENT;
-            chkRestorePoint.FlatAppearance.CheckedBackColor   = T.ACCENT;
-            chkRestorePoint.FlatAppearance.MouseOverBackColor = T.BG;
-            _themeApplicators.Add(() =>
-            {
-                chkRestorePoint.ForeColor = T.ACCENT;
-                chkRestorePoint.FlatAppearance.BorderColor      = T.ACCENT;
-                chkRestorePoint.FlatAppearance.CheckedBackColor = T.ACCENT;
-            });
-            rpRow.Controls.Add(chkRestorePoint);
-            leftCol.Controls.Add(rpRow, 0, 1);
+            var selNone = new FlatButton("✘ None", Theme.SURFACE2);
+            selNone.SetBounds(104, y, 88, 28);
+            selNone.Click += (s, e) => SetAllInView(false);
 
-            // ── Run buttons ───────────────────────────────────────────────
-            var btnPanel = new Panel { Dock = DockStyle.Fill, BackColor = T.BG, Padding = new Padding(0, 6, 0, 0) };
-            _themeApplicators.Add(() => btnPanel.BackColor = T.BG);
-            leftCol.Controls.Add(btnPanel, 0, 2);
-
-            btnRunSelected = new GlowButton("RUN SELECTED", T.ACCENT,  new Rectangle(0, 0, 0, 42), T);
-            btnRunAll      = new GlowButton("RUN ALL",      T.ACCENT2, new Rectangle(0, 0, 0, 42), T);
-            btnRunSelected.Dock = DockStyle.Left; btnRunAll.Dock = DockStyle.Left;
-            btnRunSelected.Width = 160; btnRunAll.Width = 130;
-            btnRunSelected.Margin = new Padding(0, 0, 8, 0);
-            btnRunSelected.Click += async (s, e) => await RunTweaks(selectedOnly: true);
-            btnRunAll.Click      += async (s, e) => await RunTweaks(selectedOnly: false);
-            btnPanel.Controls.Add(btnRunAll);
-            btnPanel.Controls.Add(btnRunSelected);
-
-            // ── Progress row ──────────────────────────────────────────────
-            var progPanel = new TableLayoutPanel { Dock = DockStyle.Fill, BackColor = T.BG, ColumnCount = 1, RowCount = 2, Padding = new Padding(0, 4, 0, 0) };
-            progPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 8));
-            progPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            leftCol.Controls.Add(progPanel, 0, 3);
-            _themeApplicators.Add(() => progPanel.BackColor = T.BG);
-
-            var progBg = new Panel { Dock = DockStyle.Fill, BackColor = T.BORDER };
-            _themeApplicators.Add(() => progBg.BackColor = T.BORDER);
-            progressBar = new Panel { Bounds = new Rectangle(0, 0, 0, 8), BackColor = T.ACCENT };
-            progBg.Controls.Add(progressBar);
-            progPanel.Controls.Add(progBg, 0, 0);
-
-            lblStatus = new Label { Text = "Ready.", Font = FONT_BODY, ForeColor = T.TEXTDIM, AutoSize = true, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, BackColor = T.BG };
-            progPanel.Controls.Add(lblStatus, 0, 1);
-
-            // ── Right column ──────────────────────────────────────────────
-            var rightCol = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, BackColor = T.BG, Padding = new Padding(4, 0, 0, 0) };
-            rightCol.RowStyles.Add(new RowStyle(SizeType.Percent, 30));
-            rightCol.RowStyles.Add(new RowStyle(SizeType.Percent, 30));
-            rightCol.RowStyles.Add(new RowStyle(SizeType.Percent, 40));
-            body.Controls.Add(rightCol, 1, 0);
-            _themeApplicators.Add(() => rightCol.BackColor = T.BG);
-
-            // System info
-            var sysCard  = MakeCardDock("SYSTEM INFO"); rightCol.Controls.Add(sysCard, 0, 0);
-            var sysInner = new Panel { Dock = DockStyle.Fill, BackColor = T.CARD, Padding = new Padding(10, 34, 10, 6) };
-            _themeApplicators.Add(() => sysInner.BackColor = T.CARD);
-            sysCard.Controls.Add(sysInner); BuildSystemInfoPanel(sysInner);
-
-            // Notes
-            var infoCard  = MakeCardDock("NOTES"); rightCol.Controls.Add(infoCard, 0, 1);
-            var infoInner = new Panel { Dock = DockStyle.Fill, BackColor = T.CARD, Padding = new Padding(10, 34, 10, 10) };
-            _themeApplicators.Add(() => infoInner.BackColor = T.CARD);
-            infoCard.Controls.Add(infoInner);
-            AddInfoLineDock(infoInner, T.ACCENT,  "• Run as Administrator for registry & service access.");
-            AddInfoLineDock(infoInner, T.WARN,    "• A reboot is required for HAGS & timer tweaks.");
-            AddInfoLineDock(infoInner, T.TEXTDIM, "• Bloatware removal strips provisioned packages.");
-            AddGithubLink(infoInner);
-
-            // Summary
-            var sumCard  = MakeCardDock("LAST RUN SUMMARY"); rightCol.Controls.Add(sumCard, 0, 2);
-            var sumInner = new Panel { Dock = DockStyle.Fill, BackColor = T.CARD, Padding = new Padding(10, 34, 10, 10) };
-            _themeApplicators.Add(() => sumInner.BackColor = T.CARD);
-            sumCard.Controls.Add(sumInner);
-            var sumBoxes = new TableLayoutPanel { Dock = DockStyle.Fill, BackColor = T.CARD, ColumnCount = 2, RowCount = 1 };
-            _themeApplicators.Add(() => sumBoxes.BackColor = T.CARD);
-            sumBoxes.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-            sumBoxes.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-            sumBoxes.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            sumInner.Controls.Add(sumBoxes);
-            _passLabel = AddSummaryBoxDock(sumBoxes, 0, T.ACCENT, "0", "Succeeded", "✔");
-            _failLabel = AddSummaryBoxDock(sumBoxes, 1, T.DANGER, "0", "Failed",    "✘");
+            _sidebar.Controls.AddRange(new Control[] { selAll, selNone });
         }
 
-        // ── Changelog tab ─────────────────────────────────────────────────
-        void BuildChangelogTab(TabPage page)
+        private Button MakeSidebarBtn(string cat)
         {
-            _changelogPanel = new Panel { Dock = DockStyle.Fill, BackColor = T.BG, Padding = new Padding(10) };
-            _themeApplicators.Add(() => _changelogPanel.BackColor = T.BG);
-            page.Controls.Add(_changelogPanel);
-            RefreshChangelogTab();
+            bool   active = _activeCategory == cat;
+            string emoji  = CatEmoji.TryGetValue(cat, out var em) ? em : "📦";
+
+            var btn = new Button
+            {
+                Text      = $"  {emoji}  {cat}",
+                TextAlign = ContentAlignment.MiddleLeft,
+                FlatStyle = FlatStyle.Flat,
+                BackColor = active ? Theme.ACCENT : Color.Transparent,
+                ForeColor = active ? Color.White : Theme.TEXT_SEC,
+                Font      = new Font("Segoe UI", 9.5f),
+                Cursor    = Cursors.Hand,
+                Tag       = cat
+            };
+            btn.FlatAppearance.BorderSize           = 0;
+            btn.FlatAppearance.MouseOverBackColor   = active
+                ? Theme.ACCENT_HOV
+                : Color.FromArgb(35, 35, 50);
+
+            btn.Click += (s, e) =>
+            {
+                _activeCategory = cat;
+                RefreshSidebar();
+                if (cat == "History") ShowHistory();
+                else                  PopulateGrid(cat);
+            };
+            return btn;
         }
 
-        void RefreshChangelogTab()
+        private void RefreshSidebar()
         {
-            if (_changelogPanel == null) return;
-            _changelogPanel.Controls.Clear();
+            foreach (Control c in _sidebar.Controls)
+            {
+                if (c is Button btn && btn.Tag is string cat && CatEmoji.ContainsKey(cat))
+                {
+                    bool active = cat == _activeCategory;
+                    btn.BackColor = active ? Theme.ACCENT : Color.Transparent;
+                    btn.ForeColor = active ? Color.White : Theme.TEXT_SEC;
+                    btn.FlatAppearance.MouseOverBackColor = active
+                        ? Theme.ACCENT_HOV
+                        : Color.FromArgb(35, 35, 50);
+                }
+            }
+        }
 
-            // Header row
-            var topRow = new Panel { Dock = DockStyle.Top, Height = 44, BackColor = T.BG };
-            _changelogPanel.Controls.Add(topRow);
+        // ─────────────────────────────────────────────────────────────────
+        //  MAIN AREA
+        // ─────────────────────────────────────────────────────────────────
+        private void BuildMainArea()
+        {
+            _mainArea = new Panel { BackColor = Theme.BG };
 
-            var titleLbl = new Label { Text = "RUN HISTORY", Font = new Font("Segoe UI", 10f, FontStyle.Bold), ForeColor = T.TEXTDIM, AutoSize = true, Location = new Point(4, 12), BackColor = T.BG };
+            // Dock = Fill gives FlowLayoutPanel a definite width from its
+            // parent, which is what WrapContents needs to break rows correctly.
+            _tileGrid = new FlowLayoutPanel
+            {
+                AutoScroll    = true,
+                WrapContents  = true,
+                FlowDirection = FlowDirection.LeftToRight,
+                BackColor     = Theme.BG,
+                Padding       = new Padding(10),
+                Dock          = DockStyle.Fill,
+            };
+            _tileGrid.HorizontalScroll.Enabled = false;
+            _tileGrid.HorizontalScroll.Visible = false;
+
+            _histPanel = new Panel
+            {
+                AutoScroll = true,
+                BackColor  = Theme.BG,
+                Padding    = new Padding(16),
+                Dock       = DockStyle.Fill,
+                Visible    = false
+            };
+
+            _mainArea.Controls.Add(_histPanel);
+            _mainArea.Controls.Add(_tileGrid);
+        }
+
+        // ─────────────────────────────────────────────────────────────────
+        //  GRID POPULATION  (mirrors PopulateApps from App Downloader)
+        // ─────────────────────────────────────────────────────────────────
+        private static readonly string[] CategoryOrder =
+        {
+            "Performance", "Privacy", "Responsiveness",
+            "Gaming", "Network", "Bloatware", "Advanced"
+        };
+
+        private void PopulateGrid(string filter)
+        {
+            _histPanel.Visible = false;
+            _tileGrid.Visible  = true;
+
+            _tileGrid.SuspendLayout();
+            _tileGrid.Controls.Clear();
+            _tiles.Clear();
+
+            IEnumerable<TweakEntry> source = filter == "All"
+                ? TweakCatalog.All
+                : TweakCatalog.All.Where(t => t.Category == filter);
+
+            // Group by category, preserve defined order
+            var groups = source
+                .GroupBy(t => t.Category)
+                .OrderBy(g => Array.IndexOf(CategoryOrder, g.Key));
+
+            foreach (var group in groups)
+            {
+                string emoji = CatEmoji.TryGetValue(group.Key, out var em) ? em : "📦";
+
+                // Section header — must be very wide so FlowLayoutPanel breaks before it
+                var hdr = new SectionHeader(group.Key, emoji);
+                _tileGrid.Controls.Add(hdr);
+
+                foreach (var entry in group)
+                {
+                    var tile = new TweakTile(entry);
+                    tile.IsChecked = entry.DefaultOn;
+
+                    tile.CheckedChanged += (s, e_) => UpdateSelCount();
+
+                    _tiles.Add(tile);
+                    _tileGrid.Controls.Add(tile);
+                }
+            }
+
+            _tileGrid.ResumeLayout(true);
+            UpdateSelCount();
+        }
+
+        private void SetAllInView(bool check)
+        {
+            foreach (var t in _tiles) t.IsChecked = check;
+            if (!check) _advancedKeys.Clear();
+            UpdateSelCount();
+        }
+
+        private void UpdateSelCount()
+        {
+            int count = _tiles.Count(t => t.IsChecked);
+            if (_selCountLabel == null) return;
+
+            _selCountLabel.Text = count == 0
+                ? "No tweaks selected"
+                : $"{count} tweak{(count == 1 ? "" : "s")} selected";
+
+            if (_undoBtn != null)
+            {
+                var cats = _tiles.Where(t => t.IsChecked).Select(t => t.Entry.Category).Distinct();
+                _undoBtn.Enabled = cats.Any(c => TweakEngine.HasBackup(c));
+            }
+        }
+
+        // ─────────────────────────────────────────────────────────────────
+        //  HISTORY
+        // ─────────────────────────────────────────────────────────────────
+        private void ShowHistory()
+        {
+            _tileGrid.Visible  = false;
+            _histPanel.Visible = true;
+            BuildHistoryContent();
+        }
+
+        private void BuildHistoryContent()
+        {
+            _histPanel.Controls.Clear();
+            int y = 0;
+
+            var topRow = new Panel
+            {
+                Left      = 0, Top = y, Height = 44,
+                Width     = _histPanel.ClientSize.Width,
+                Anchor    = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
+                BackColor = Color.Transparent
+            };
+            var titleLbl = new Label
+            {
+                Text      = "RUN HISTORY",
+                Font      = new Font("Segoe UI", 9f, FontStyle.Bold),
+                ForeColor = Theme.TEXT_SEC,
+                AutoSize  = true,
+                Location  = new Point(0, 13)
+            };
+            var clearBtn = new FlatButton("Clear History", Theme.DANGER)
+            {
+                Size      = new Size(120, 28),
+                Anchor    = AnchorStyles.Right | AnchorStyles.Top,
+                ForeColor = Color.White
+            };
+            topRow.SizeChanged += (s, e) => clearBtn.Location = new Point(topRow.Width - 124, 8);
+            clearBtn.Location   = new Point(topRow.Width - 124, 8);
+            clearBtn.Click += (s, e) =>
+            {
+                if (MessageBox.Show("Clear all run history?", "Confirm",
+                    MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                { ChangeLog.Clear(); BuildHistoryContent(); }
+            };
             topRow.Controls.Add(titleLbl);
-
-            var btnClear = new GlowButton("CLEAR HISTORY", T.DANGER, new Rectangle(0, 0, 140, 30), T)
-            {
-                Anchor = AnchorStyles.Right | AnchorStyles.Top
-            };
-            topRow.SizeChanged += (s, e) => btnClear.Location = new Point(topRow.Width - 150, 7);
-            btnClear.Click += (s, e) =>
-            {
-                if (MessageBox.Show("Clear all run history?", "Confirm", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
-                { ChangeLog.Clear(); RefreshChangelogTab(); }
-            };
-            topRow.Controls.Add(btnClear);
-
-            // Scrollable entry list
-            var scroll = new Panel { Dock = DockStyle.Fill, AutoScroll = true, BackColor = T.BG };
-            _changelogPanel.Controls.Add(scroll);
+            topRow.Controls.Add(clearBtn);
+            _histPanel.Controls.Add(topRow);
+            y += 52;
 
             if (ChangeLog.Entries.Count == 0)
             {
-                scroll.Controls.Add(new Label
+                _histPanel.Controls.Add(new Label
                 {
-                    Text = "No runs recorded yet. Run some tweaks to start tracking history.",
-                    Font = new Font("Segoe UI", 11f, FontStyle.Regular),
-                    ForeColor = T.TEXTDIM, AutoSize = true,
-                    Location = new Point(10, 20), BackColor = T.BG
+                    Text      = "No runs recorded yet. Apply some tweaks to start tracking history.",
+                    Font      = new Font("Segoe UI", 10f),
+                    ForeColor = Theme.TEXT_SEC,
+                    AutoSize  = true,
+                    Location  = new Point(0, y + 10)
                 });
                 return;
             }
 
-            int y = 4;
             foreach (var entry in ChangeLog.Entries)
             {
                 var card = new Panel
                 {
-                    Left = 0, Top = y, Width = scroll.ClientSize.Width - 4,
-                    BackColor = T.CARD, Padding = new Padding(12, 8, 12, 10),
-                    Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
+                    Left      = 0, Top = y,
+                    Width     = _histPanel.ClientSize.Width - 4,
+                    BackColor = Theme.SURFACE,
+                    Padding   = new Padding(14, 10, 14, 10),
+                    Anchor    = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
                 };
                 card.Paint += (s, e) =>
                 {
-                    using var pen = new Pen(T.BORDER); e.Graphics.DrawRectangle(pen, 0, 0, card.Width - 1, card.Height - 1);
-                    using var stripe = new SolidBrush(T.ACCENT2); e.Graphics.FillRectangle(stripe, 0, 0, 3, card.Height);
+                    using var pen    = new Pen(Theme.BORDER);
+                    using var stripe = new SolidBrush(Theme.ACCENT);
+                    e.Graphics.DrawRectangle(pen, 0, 0, card.Width - 1, card.Height - 1);
+                    e.Graphics.FillRectangle(stripe, 0, 0, 3, card.Height);
                 };
 
-                // Timestamp + OS
-                var tsLbl = new Label { Text = entry.Timestamp, Font = new Font("Segoe UI", 9f, FontStyle.Bold), ForeColor = T.ACCENT2, AutoSize = true, Location = new Point(14, 8), BackColor = T.BG };
-                var osLbl = new Label { Text = entry.WindowsVer, Font = new Font("Segoe UI", 8.5f, FontStyle.Regular), ForeColor = T.TEXTDIM, AutoSize = true, Location = new Point(14, 26), BackColor = T.BG };
+                var tsLbl  = new Label { Text = entry.Timestamp,                              Font = new Font("Segoe UI", 9f, FontStyle.Bold), ForeColor = Theme.ACCENT,   AutoSize = true, Location = new Point(14, 10), BackColor = Color.Transparent };
+                var osLbl  = new Label { Text = entry.WindowsVer,                             Font = new Font("Segoe UI", 8.5f),               ForeColor = Theme.TEXT_SEC, AutoSize = true, Location = new Point(14, 28), BackColor = Color.Transparent };
+                var catLbl = new Label { Text = $"Categories: {entry.Categories}",            Font = new Font("Segoe UI", 9f),                 ForeColor = Theme.TEXT_PRI, AutoSize = true, Location = new Point(14, 46), BackColor = Color.Transparent };
+                Color sc   = entry.Failed == 0 ? Theme.SUCCESS : Theme.WARNING;
+                var stLbl  = new Label { Text = $"✔ {entry.Passed} succeeded   ✘ {entry.Failed} failed" + (entry.RestorePoint ? "   🛡 Restore Point" : ""),
+                                         Font = new Font("Segoe UI", 9f, FontStyle.Bold), ForeColor = sc, AutoSize = true, Location = new Point(14, 64), BackColor = Color.Transparent };
 
-                // Categories run
-                var catLbl = new Label { Text = $"Categories: {entry.Categories}", Font = new Font("Segoe UI", 9f, FontStyle.Regular), ForeColor = T.TEXT, AutoSize = true, Location = new Point(14, 46), BackColor = T.BG };
+                card.Controls.Add(tsLbl); card.Controls.Add(osLbl);
+                card.Controls.Add(catLbl); card.Controls.Add(stLbl);
 
-                // Pass/fail counters
-                Color passCol = entry.Failed == 0 ? T.ACCENT : T.WARN;
-                var statLbl  = new Label
+                int cardH = 86;
+                if (entry.Details.Count > 0)
                 {
-                    Text = $"✔ {entry.Passed} succeeded   ✘ {entry.Failed} failed" +
-                           (entry.RestorePoint ? "   🛡 Restore Point created" : ""),
-                    Font = new Font("Segoe UI", 9f, FontStyle.Bold),
-                    ForeColor = passCol, AutoSize = true,
-                    Location = new Point(14, 64), BackColor = T.BG
-                };
-
-                // Details (collapsible — show on hover would be complex, so show inline truncated)
-                string detailText = entry.Details.Count > 0
-                    ? string.Join("  ·  ", entry.Details.Take(6)) + (entry.Details.Count > 6 ? $"  … +{entry.Details.Count - 6} more" : "")
-                    : "";
-                int cardH = 84;
-                if (!string.IsNullOrEmpty(detailText))
-                {
-                    var detLbl = new Label { Text = detailText, Font = new Font("Consolas", 8f, FontStyle.Regular), ForeColor = T.TEXTDIM, AutoSize = false, Width = card.Width - 28, Location = new Point(14, 82), BackColor = T.BG };
-                    int dh = MeasureTextHeight(detailText, detLbl.Font, detLbl.Width) + 4;
-                    detLbl.Height = dh;
-                    card.Controls.Add(detLbl);
-                    cardH = 82 + dh + 10;
+                    string dt = string.Join("  ·  ", entry.Details.Take(8))
+                        + (entry.Details.Count > 8 ? $"  … +{entry.Details.Count - 8} more" : "");
+                    var dL = new Label
+                    {
+                        Text      = dt,
+                        Font      = new Font("Consolas", 7.5f),
+                        ForeColor = Theme.TEXT_SEC,
+                        AutoSize  = false,
+                        Width     = card.Width - 30,
+                        Height    = 30,
+                        Location  = new Point(14, 82),
+                        BackColor = Color.Transparent
+                    };
+                    card.Controls.Add(dL);
+                    cardH = 118;
                 }
 
                 card.Height = cardH;
-                card.Controls.Add(tsLbl); card.Controls.Add(osLbl);
-                card.Controls.Add(catLbl); card.Controls.Add(statLbl);
-                scroll.Controls.Add(card);
-                y += card.Height + 8;
+                _histPanel.Controls.Add(card);
+                y += cardH + 8;
             }
         }
 
-        // ── Helpers ───────────────────────────────────────────────────────
-        Panel MakeCardDock(string title)
+        // ─────────────────────────────────────────────────────────────────
+        //  BOTTOM BAR
+        // ─────────────────────────────────────────────────────────────────
+        private void BuildBottomBar()
         {
-            var card = new Panel { Dock = DockStyle.Fill, BackColor = T.CARD, Margin = new Padding(4) };
-            card.Paint += (s, e) =>
+            _bottomBar = new Panel { BackColor = Theme.SURFACE, Height = 110 };
+            _bottomBar.Paint += (s, e) =>
             {
-                using var pen = new Pen(T.BORDER); e.Graphics.DrawRectangle(pen, 0, 0, card.Width - 1, card.Height - 1);
-                using var br = new LinearGradientBrush(new Rectangle(0, 0, card.Width, 2), T.ACCENT, T.ACCENT2, LinearGradientMode.Horizontal);
-                e.Graphics.FillRectangle(br, 0, 0, card.Width, 2);
+                using var p = new Pen(Theme.BORDER);
+                e.Graphics.DrawLine(p, 0, 0, _bottomBar.Width, 0);
             };
-            var lbl = new Label { Text = title, Font = new Font("Segoe UI", 7.5f, FontStyle.Bold), ForeColor = T.TEXTDIM, AutoSize = true, Location = new Point(12, 10), BackColor = T.CARD };
-            _themeApplicators.Add(() => { card.BackColor = T.CARD; lbl.ForeColor = T.TEXTDIM; lbl.BackColor = T.CARD; card.Invalidate(); });
-            card.Controls.Add(lbl);
-            return card;
-        }
 
-        CheckBox MakeCheckRowDock(TableLayoutPanel parent, int row, string title, string subtitle,
-                                   string category, out GlowButton undoBtn, bool isAdvanced = false)
-        {
-            var cell = new TableLayoutPanel { Dock = DockStyle.Fill, BackColor = T.CARD, ColumnCount = 2, RowCount = 1 };
-            cell.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            cell.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 80));
-            _themeApplicators.Add(() => cell.BackColor = T.CARD);
-
-            if (isAdvanced)
+            _progOuter = new Panel
             {
-                // Make the cell itself clip properly and draw both bg + border
-                cell.Paint += (s, e) =>
-                {
-                    using var bg = new SolidBrush(Color.FromArgb(35, T.WARN.R, T.WARN.G, T.WARN.B));
-                    e.Graphics.FillRectangle(bg, 0, 0, cell.Width, cell.Height);
-                };
-
-                // Draw border AFTER children paint using the parent's Paint event
-                // but offset using the cell's actual bounds within the parent
-                cell.LocationChanged += (s, e) => parent.Invalidate();
-                cell.SizeChanged     += (s, e) => parent.Invalidate();
-                parent.Paint += (s, e) =>
-                {
-                    // Find the cell's bounds relative to parent
-                    var bounds = cell.Bounds;
-                    if (bounds.IsEmpty) return;
-                    e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-                    using var pen = new Pen(T.WARN, 2f);
-                    e.Graphics.DrawRectangle(pen,
-                        bounds.X + 1,
-                        bounds.Y + 1,
-                        bounds.Width  - 2,
-                        bounds.Height - 2);
-                };
-            }
-
-            var left = new Panel { Dock = DockStyle.Fill, BackColor = T.CARD };
-            var chk  = new CheckBox { Text = title, Font = isAdvanced ? new Font("Segoe UI", 12f, FontStyle.Bold) : FONT_LABEL, ForeColor = isAdvanced ? T.WARN : T.TEXT, AutoSize = true, Location = new Point(6, 4), BackColor = T.CARD, FlatStyle = FlatStyle.Flat };
-            chk.FlatAppearance.BorderColor = isAdvanced ? T.WARN : T.BORDER;
-            chk.FlatAppearance.CheckedBackColor = isAdvanced ? T.WARN : T.ACCENT;
-            chk.FlatAppearance.MouseOverBackColor = T.CARD;
-            _themeApplicators.Add(() => { chk.BackColor = T.CARD; chk.FlatAppearance.MouseOverBackColor = T.CARD; chk.ForeColor = isAdvanced ? T.WARN : T.TEXT; chk.FlatAppearance.BorderColor = isAdvanced ? T.WARN : T.BORDER; chk.FlatAppearance.CheckedBackColor = isAdvanced ? T.WARN : T.ACCENT; });
-
-            var desc = new Label { Text = subtitle, Font = FONT_BODY, ForeColor = isAdvanced ? Color.FromArgb(180, T.WARN.R, T.WARN.G, T.WARN.B) : T.TEXTDIM, AutoSize = true, Location = new Point(26, 24), BackColor = T.CARD };
-            _themeApplicators.Add(() => { desc.ForeColor = isAdvanced ? Color.FromArgb(180, T.WARN.R, T.WARN.G, T.WARN.B) : T.TEXTDIM; desc.BackColor = T.CARD; });
-            left.Controls.Add(chk); left.Controls.Add(desc);
-
-            var btnWrapper = new Panel { Dock = DockStyle.Fill, BackColor = T.CARD, Padding = new Padding(4, 0, 4, 0) };
-            _themeApplicators.Add(() => btnWrapper.BackColor = T.CARD);
-            undoBtn = new GlowButton("↩ UNDO", T.DANGER, new Rectangle(0, 0, 72, 30), T) { Visible = TweakEngine.HasBackup(category) };
-            var btn = undoBtn;
-            btnWrapper.Resize += (s, e) => { btn.Width = btnWrapper.Width - 8; btn.Height = 30; btn.Location = new Point(4, (btnWrapper.Height - btn.Height) / 2); };
-            btnWrapper.Controls.Add(btn);
-            cell.Controls.Add(left, 0, 0); cell.Controls.Add(btnWrapper, 1, 0);
-            parent.Controls.Add(cell, 0, row);
-            return chk;
-        }
-
-        void BuildSystemInfoPanel(Panel parent)
-        {
-            var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, BackColor = T.CARD };
-            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 38));
-            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 62));
-            _themeApplicators.Add(() => layout.BackColor = T.CARD);
-            var keys = new[] { "OS", "CPU", "RAM", "GPU" };
-            var vals = new Dictionary<string, Label>();
-            foreach (var key in keys)
+                BackColor = Theme.BORDER,
+                Location  = new Point(16, 14),
+                Size      = new Size(500, 6)
+            };
+            _progInner = new Panel
             {
-                layout.RowStyles.Add(new RowStyle(SizeType.Percent, 25)); layout.RowCount++;
-                var kl = new Label { Text = key, Font = new Font("Segoe UI", 9f, FontStyle.Bold), ForeColor = T.TEXTDIM, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, BackColor = T.CARD, Padding = new Padding(4, 0, 0, 0) };
-                _themeApplicators.Add(() => { kl.ForeColor = T.TEXTDIM; kl.BackColor = T.CARD; });
-                var vl = new Label { Text = "Loading…", Font = new Font("Segoe UI", 9f, FontStyle.Regular), ForeColor = T.TEXT, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, BackColor = T.CARD, AutoEllipsis = true };
-                _themeApplicators.Add(() => { vl.ForeColor = T.TEXT; vl.BackColor = T.CARD; });
-                layout.Controls.Add(kl); layout.Controls.Add(vl); vals[key] = vl;
-            }
-            parent.Controls.Add(layout);
-            Task.Run(() =>
+                BackColor = Theme.ACCENT,
+                Location  = Point.Empty,
+                Size      = new Size(0, 6)
+            };
+            _progOuter.Controls.Add(_progInner);
+
+            _statusLabel = new Label
             {
-                try
-                {
-                    string cpu = ReadRegistry(@"HKEY_LOCAL_MACHINE\HARDWARE\DESCRIPTION\System\CentralProcessor\0", "ProcessorNameString", "Unknown CPU").Trim();
-                    string ram = RunAndCapture("powershell", "-NoProfile -Command \"[math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory/1GB)\"");
-                    ram = string.IsNullOrWhiteSpace(ram) ? "Unknown" : $"{ram.Trim()} GB";
-                    string gpu = RunAndCapture("powershell", "-NoProfile -Command \"(Get-CimInstance Win32_VideoController | Select-Object -First 1).Name\"").Trim();
-                    if (string.IsNullOrWhiteSpace(gpu)) gpu = "Unknown";
-                    Invoke(new Action(() => { vals["OS"].Text = WinVersion.DisplayName; vals["CPU"].Text = cpu; vals["RAM"].Text = ram; vals["GPU"].Text = gpu; }));
-                }
-                catch { Invoke(new Action(() => { foreach (var l in vals.Values) l.Text = "Unavailable"; })); }
+                Text      = "Ready",
+                ForeColor = Theme.TEXT_SEC,
+                AutoSize  = true,
+                Location  = new Point(16, 26)
+            };
+
+            _selCountLabel = new Label
+            {
+                Text      = "No tweaks selected",
+                ForeColor = Theme.TEXT_SEC,
+                AutoSize  = true,
+                Location  = new Point(530, 14)
+            };
+
+            _restoreChk = new CheckBox
+            {
+                Text      = "🛡 Create Restore Point before running",
+                ForeColor = Theme.TEXT_SEC,
+                BackColor = Color.Transparent,
+                Checked   = true,
+                AutoSize  = true,
+                Location  = new Point(16, 62),
+                FlatStyle = FlatStyle.Flat
+            };
+            _restoreChk.FlatAppearance.BorderColor        = Theme.BORDER;
+            _restoreChk.FlatAppearance.CheckedBackColor   = Theme.ACCENT;
+            _restoreChk.FlatAppearance.MouseOverBackColor = Theme.SURFACE;
+
+            _undoBtn = new FlatButton("↩ Undo Selected", Theme.SURFACE2)
+            {
+                Size    = new Size(150, 36),
+                Enabled = false
+            };
+            _undoBtn.Click += OnUndoClicked;
+
+            _clearBtn = new FlatButton("Clear Selection", Theme.SURFACE2)
+                { Size = new Size(130, 36) };
+            _clearBtn.Click += (s, e) => SetAllInView(false);
+
+            _runBtn = new FlatButton("⚡  Run Selected", Theme.ACCENT)
+            {
+                Size      = new Size(160, 36),
+                Font      = new Font("Segoe UI Semibold", 10f),
+                ForeColor = Color.White
+            };
+            _runBtn.Click += OnRunClicked;
+
+            var logToggle = new FlatButton("📋 Log", Theme.SURFACE2)
+                { Size = new Size(70, 26) };
+            logToggle.Click += (s, e) => ToggleLog();
+
+            _bottomBar.SizeChanged += (s, e) =>
+            {
+                int r = _bottomBar.Width - 16;
+                _runBtn.Location   = new Point(r - 160, 58);
+                _clearBtn.Location = new Point(r - 300, 58);
+                _undoBtn.Location  = new Point(r - 460, 58);
+                logToggle.Location = new Point(r - 82,  14);
+                _progOuter.Width   = Math.Max(200, r - 620);
+            };
+
+            _bottomBar.Controls.AddRange(new Control[]
+            {
+                _progOuter, _statusLabel, _selCountLabel,
+                _restoreChk, _undoBtn, _clearBtn, _runBtn, logToggle
             });
         }
 
-        static string ReadRegistry(string kp, string vn, string fb)
+        // ─────────────────────────────────────────────────────────────────
+        //  LOG PANEL
+        // ─────────────────────────────────────────────────────────────────
+        private void BuildLogPanel()
         {
-            try { var v = Microsoft.Win32.Registry.GetValue(kp, vn, null); return v?.ToString() ?? fb; } catch { return fb; }
-        }
-
-        static string RunAndCapture(string exe, string args)
-        {
-            try
+            _logBox = new RichTextBox
             {
-                var psi = new ProcessStartInfo(exe, args) { CreateNoWindow = true, UseShellExecute = false, RedirectStandardOutput = true };
-                using var p = Process.Start(psi); string o = p.StandardOutput.ReadToEnd().Trim(); p.WaitForExit(); return o;
-            }
-            catch { return ""; }
-        }
-
-        void AddInfoLineDock(Panel parent, Color col, string text)
-        {
-            var flow = parent.Controls.Count == 0
-                ? new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, BackColor = T.CARD, WrapContents = false }
-                : (FlowLayoutPanel)parent.Controls[0];
-            if (parent.Controls.Count == 0) parent.Controls.Add(flow);
-            _themeApplicators.Add(() => flow.BackColor = T.CARD);
-            var lbl = new Label { Text = text, Font = new Font("Segoe UI", 11f, FontStyle.Regular), ForeColor = col, AutoSize = true, BackColor = T.CARD, Margin = new Padding(0, 4, 0, 4) };
-            _themeApplicators.Add(() => lbl.BackColor = T.CARD);
-            flow.Controls.Add(lbl);
-        }
-
-        void AddGithubLink(Panel parent)
-        {
-            var flow = parent.Controls.Count == 0
-                ? new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, BackColor = T.CARD, WrapContents = false }
-                : (FlowLayoutPanel)parent.Controls[0];
-            if (parent.Controls.Count == 0) parent.Controls.Add(flow);
-            var link = new LinkLabel { Text = "⭐  GitHub: github.com/ConnorCorn07/win11op", Font = new Font("Segoe UI", 11f, FontStyle.Regular), AutoSize = true, BackColor = T.CARD, Margin = new Padding(0, 8, 0, 4) };
-            link.LinkColor = T.ACCENT2; link.ActiveLinkColor = T.ACCENT; link.VisitedLinkColor = T.ACCENT2; link.LinkBehavior = LinkBehavior.HoverUnderline;
-            link.Click += (s, e) => Process.Start(new ProcessStartInfo { FileName = "https://github.com/ConnorCorn07/win11op", UseShellExecute = true });
-            _themeApplicators.Add(() => { link.BackColor = T.CARD; link.LinkColor = T.ACCENT2; link.ActiveLinkColor = T.ACCENT; link.VisitedLinkColor = T.ACCENT2; });
-            flow.Controls.Add(link);
-        }
-
-        Label AddSummaryBoxDock(TableLayoutPanel parent, int col, Color ac, string count, string title, string icon)
-        {
-            var box = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(30, ac.R, ac.G, ac.B), Margin = new Padding(4) };
-            box.Paint += (s, e) =>
-            {
-                using var sb = new SolidBrush(ac); e.Graphics.FillRectangle(sb, 0, 0, 5, box.Height);
-                using var pen = new Pen(Color.FromArgb(80, ac.R, ac.G, ac.B), 1.5f); e.Graphics.DrawRectangle(pen, 1, 1, box.Width - 3, box.Height - 3);
+                BackColor   = Color.FromArgb(10, 10, 14),
+                ForeColor   = Color.FromArgb(100, 220, 100),
+                BorderStyle = BorderStyle.None,
+                ReadOnly    = true,
+                Font        = new Font("Consolas", 8.5f),
+                Dock        = DockStyle.Fill,
+                ScrollBars  = RichTextBoxScrollBars.Vertical
             };
-            var sub = new Label { Text = title.ToUpper(), Font = new Font("Segoe UI", 9f, FontStyle.Bold), ForeColor = Color.FromArgb(200, ac.R, ac.G, ac.B), TextAlign = ContentAlignment.MiddleLeft, Dock = DockStyle.Bottom, Height = 30, BackColor = Color.FromArgb(30, ac.R, ac.G, ac.B), Padding = new Padding(14, 0, 0, 0) };
-            var mid = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, BackColor = Color.FromArgb(30, ac.R, ac.G, ac.B) };
-            mid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 60)); mid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40));
-            var num = new Label { Text = count, Font = new Font("Segoe UI", 42f, FontStyle.Bold), ForeColor = ac, TextAlign = ContentAlignment.MiddleLeft, Dock = DockStyle.Fill, BackColor = Color.FromArgb(30, ac.R, ac.G, ac.B), Padding = new Padding(14, 0, 0, 0) };
-            var ico = new Label { Text = icon, Font = new Font("Segoe UI", 32f, FontStyle.Regular), ForeColor = Color.FromArgb(70, ac.R, ac.G, ac.B), TextAlign = ContentAlignment.MiddleCenter, Dock = DockStyle.Fill, BackColor = Color.FromArgb(30, ac.R, ac.G, ac.B) };
-            mid.Controls.Add(num, 0, 0); mid.Controls.Add(ico, 1, 0);
-            box.Controls.Add(sub); box.Controls.Add(mid);
-            parent.Controls.Add(box, col, 0);
-            return num;
-        }
 
-        static int MeasureTextHeight(string text, Font font, int width)
-        {
-            using var g = Graphics.FromHwnd(IntPtr.Zero);
-            return (int)Math.Ceiling(g.MeasureString(text, font, width).Height) + 4;
-        }
-
-        // ── Undo / run ────────────────────────────────────────────────────
-        void RefreshUndoButtons()
-        {
-            if (InvokeRequired) { Invoke(new Action(RefreshUndoButtons)); return; }
-            _undoPerf.Visible       = TweakEngine.HasBackup("Performance");
-            _undoPrivacy.Visible    = TweakEngine.HasBackup("Privacy");
-            _undoResponsive.Visible = TweakEngine.HasBackup("Responsiveness");
-            _undoGaming.Visible     = TweakEngine.HasBackup("Gaming");
-            _undoNetwork.Visible    = TweakEngine.HasBackup("Network");
-            _undoAdvanced.Visible   = TweakEngine.HasBackup("Advanced");
-        }
-
-        async Task RunUndo(string category, Func<List<TweakEngine.TweakResult>> undoAction, GlowButton btn)
-        {
-            btn.Enabled = false;
-            Log($"↩ Undoing {category} tweaks…", T.WARN);
-            var results = await Task.Run(undoAction);
-            int ok = results.Count(r => r.Success), bad = results.Count(r => !r.Success);
-            Log($"┌─ UNDO {category.ToUpper()}  ({ok} restored, {bad} failed)", T.TEXTDIM);
-            foreach (var r in results) { if (r.Success) Log($"│  ✔  {r.Name}", T.ACCENT); else Log($"│  ✘  {r.Name}: {r.Error}", T.DANGER); }
-            Log($"└─────────────────────────────────────", T.BORDER);
-            Log($"↩ {category} undone. Reboot recommended.", T.ACCENT);
-            SetStatus($"{category} tweaks undone.", T.ACCENT);
-            RefreshUndoButtons(); btn.Enabled = true;
-        }
-
-        void Log(string msg, Color? col = null)
-        {
-            if (InvokeRequired) { Invoke(new Action(() => Log(msg, col))); return; }
-            logBox.SelectionColor = col ?? T.ACCENT;
-            logBox.AppendText($"[{DateTime.Now:HH:mm:ss}] {msg}\n");
-            logBox.ScrollToCaret();
-        }
-
-        void SetProgress(int done, int total)
-        {
-            if (InvokeRequired) { Invoke(new Action(() => SetProgress(done, total))); return; }
-            int w = total == 0 ? 0 : (int)((double)progressBar.Parent.Width * done / total);
-            progressBar.Width = w;
-            if (total > 0 && done < total) lblStatus.Text = $"Running… {done}/{total}";
-            else if (total == 0)           lblStatus.Text = "Ready.";
-        }
-
-        void SetStatus(string msg, Color? col = null)
-        {
-            if (InvokeRequired) { Invoke(new Action(() => SetStatus(msg, col))); return; }
-            lblStatus.Text = msg; lblStatus.ForeColor = col ?? T.TEXTDIM;
-        }
-
-        async Task RunTweaks(bool selectedOnly)
-        {
-            btnRunSelected.Enabled = btnRunAll.Enabled = false;
-            TweakEngine.ClearResults(); logBox.Clear();
-            progressBar.Width = 0; progressBar.BackColor = T.WARN;
-            _passLabel.Text = "0"; _failLabel.Text = "0";
-
-            bool doPerf     = !selectedOnly || chkPerf.Checked;
-            bool doPrivacy  = !selectedOnly || chkPrivacy.Checked;
-            bool doRespond  = !selectedOnly || chkResponsive.Checked;
-            bool doGaming   = !selectedOnly || chkGaming.Checked;
-            bool doNetwork  = !selectedOnly || chkNetwork.Checked;
-            bool doBloat    = !selectedOnly || chkBloat.Checked;
-            bool doAdvanced = (!selectedOnly || chkAdvanced.Checked) && _selectedAdvancedTweaks.Count > 0;
-
-            // ── Restore Point ─────────────────────────────────────────────
-            bool rpCreated = false;
-            if (chkRestorePoint.Checked)
+            _logPanel = new Panel
             {
-                SetStatus("Creating System Restore Point…", T.WARN);
-                Log("🛡  Creating System Restore Point…", T.WARN);
-                bool ok = await Task.Run(() => TweakEngine.CreateRestorePoint("Win11Optimizer — before tweaks"));
-                if (ok) { Log("🛡  Restore Point created successfully.", T.ACCENT); rpCreated = true; }
-                else    Log("⚠  Restore Point creation failed or was skipped (may need System Protection enabled).", T.WARN);
+                BackColor = Color.FromArgb(10, 10, 14),
+                Visible   = false,
+                Height    = 180
+            };
+
+            var hdr = new Panel { Dock = DockStyle.Top, Height = 26, BackColor = Theme.SURFACE };
+            var hdrLbl = new Label
+            {
+                Text      = "OUTPUT LOG",
+                Font      = new Font("Segoe UI", 7.5f, FontStyle.Bold),
+                ForeColor = Theme.TEXT_SEC,
+                AutoSize  = true,
+                Location  = new Point(10, 6),
+                BackColor = Color.Transparent
+            };
+            var closeBtn = new FlatButton("✕", Theme.SURFACE)
+            {
+                Size      = new Size(24, 24),
+                Font      = new Font("Segoe UI", 8f),
+                ForeColor = Theme.TEXT_SEC
+            };
+            closeBtn.Click += (s, e) => { _logPanel.Visible = false; LayoutAll(); };
+            hdr.SizeChanged += (s, e) => closeBtn.Location = new Point(hdr.Width - 26, 1);
+            hdr.Controls.AddRange(new Control[] { hdrLbl, closeBtn });
+
+            _logPanel.Controls.Add(_logBox);
+            _logPanel.Controls.Add(hdr);
+        }
+
+        private void ToggleLog()
+        {
+            _logPanel.Visible = !_logPanel.Visible;
+            LayoutAll();
+        }
+
+        // ─────────────────────────────────────────────────────────────────
+        //  RUN
+        // ─────────────────────────────────────────────────────────────────
+        private async void OnRunClicked(object sender, EventArgs e)
+        {
+            if (_isRunning) return;
+
+            var selected = _tiles.Where(t => t.IsChecked).ToList();
+            if (selected.Count == 0)
+            {
+                MessageBox.Show("Please select at least one tweak to run.",
+                    "Nothing selected", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
             }
 
-            // ── Windows version warnings ───────────────────────────────────
-            if (!WinVersion.IsWin11 && doGaming)
-                Log($"⚠  HAGS may behave differently on Windows 10 (Build {WinVersion.Build}).", T.WARN);
-            if (WinVersion.Build > 0 && WinVersion.Build < 19041 && doNetwork)
-                Log($"⚠  TCP auto-tuning flags differ on Build {WinVersion.Build}. Network tweaks may partially fail.", T.WARN);
+            _isRunning      = true;
+            _runBtn.Enabled = false;
+            _runBtn.Text    = "⏳ Running...";
+            TweakEngine.ClearResults();
 
-            _totalTweaks = (doPerf ? 9 : 0) + (doPrivacy ? 25 : 0) + (doRespond ? 8 : 0) +
-                           (doGaming ? 10 : 0) + (doNetwork ? 8 : 0) + (doBloat ? 40 : 0) +
-                           (doAdvanced ? _selectedAdvancedTweaks.Count : 0);
+            var cats = selected.Select(t => t.Entry.Category).Distinct().ToHashSet();
+            bool doPerf  = cats.Contains("Performance");
+            bool doPriv  = cats.Contains("Privacy");
+            bool doResp  = cats.Contains("Responsiveness");
+            bool doGame  = cats.Contains("Gaming");
+            bool doNet   = cats.Contains("Network");
+            bool doBloat = cats.Contains("Bloatware");
+            bool doAdv   = cats.Contains("Advanced");
+
+            // Collect advanced keys from checked advanced tiles
+            _advancedKeys = selected
+                .Where(t => t.Entry.IsAdvanced && t.Entry.AdvancedKey != null)
+                .Select(t => t.Entry.AdvancedKey)
+                .ToHashSet();
+
+            // Restore point
+            bool rpCreated = false;
+            if (_restoreChk.Checked)
+            {
+                SetStatus("Creating System Restore Point…", Theme.WARNING);
+                AppendLog("🛡 Creating System Restore Point…");
+                bool ok = await Task.Run(() =>
+                    TweakEngine.CreateRestorePoint("Win11Optimizer — before tweaks"));
+                AppendLog(ok ? "🛡 Restore Point created." : "⚠ Restore Point failed or skipped.");
+                rpCreated = ok;
+            }
+
+            _totalTweaks = (doPerf ? 10 : 0) + (doPriv ? 13 : 0) + (doResp ? 7 : 0)
+                         + (doGame ? 6 : 0) + (doNet ? 5 : 0) + (doBloat ? 10 : 0)
+                         + (doAdv ? _advancedKeys.Count : 0);
             _doneTweaks = 0;
             SetProgress(0, _totalTweaks);
 
-            // Collect category names for the log entry
-            var cats = new List<string>();
-            if (doPerf) cats.Add("Performance"); if (doPrivacy) cats.Add("Privacy");
-            if (doRespond) cats.Add("Responsiveness"); if (doGaming) cats.Add("Gaming");
-            if (doNetwork) cats.Add("Network"); if (doBloat) cats.Add("Bloatware");
-            if (doAdvanced) cats.Add("Advanced");
-
-            int prevCount = 0;
+            var catNames   = new List<string>();
             var logDetails = new List<string>();
+            int prevCount  = 0;
 
             void LogSection(string name)
             {
-                var all = TweakEngine.GetResults(); var sec = all.Skip(prevCount).ToList(); prevCount = all.Count;
-                int ok = sec.Count(r => r.Success), bad = sec.Count(r => !r.Success);
-                Log($"┌─ {name}  ({ok} ok, {bad} failed)", T.TEXTDIM);
+                var all = TweakEngine.GetResults();
+                var sec = all.Skip(prevCount).ToList();
+                prevCount = all.Count;
+                int ok  = sec.Count(r => r.Success);
+                int bad = sec.Count(r => !r.Success);
+                AppendLog($"┌─ {name}  ({ok} ok, {bad} failed)");
                 foreach (var r in sec)
                 {
-                    if (r.Success) { Log($"│  ✔  {r.Name}", T.ACCENT);  logDetails.Add($"✔ {r.Name}"); }
-                    else           { Log($"│  ✘  {r.Name}: {r.Error}", T.DANGER); logDetails.Add($"✘ {r.Name}"); }
+                    AppendLog(r.Success ? $"│  ✔  {r.Name}" : $"│  ✘  {r.Name}: {r.Error}");
+                    logDetails.Add((r.Success ? "✔ " : "✘ ") + r.Name);
                 }
-                Log($"└─────────────────────────────────────", T.BORDER);
+                AppendLog("└─────────────────────────────────────");
             }
+
+            foreach (var t in selected) t.SetStatus(TileStatus.Running);
 
             await Task.Run(() =>
             {
-                void Tick(string msg) { _doneTweaks++; SetProgress(_doneTweaks, _totalTweaks); Log(msg, T.TEXTDIM); }
-                if (doPerf)     { Tick("→ Applying Performance tweaks…");         TweakEngine.ApplyPerformanceTweaks();                       Invoke(new Action(() => LogSection("PERFORMANCE"))); }
-                if (doPrivacy)  { Tick("→ Applying Privacy & Telemetry tweaks…"); TweakEngine.ApplyPrivacyTweaks();                           Invoke(new Action(() => LogSection("PRIVACY & TELEMETRY"))); }
-                if (doRespond)  { Tick("→ Applying Responsiveness tweaks…");      TweakEngine.ApplySystemResponsiveness();                    Invoke(new Action(() => LogSection("RESPONSIVENESS"))); }
-                if (doGaming)   { Tick("→ Applying Gaming tweaks…");              TweakEngine.ApplyGamingTweaks();                            Invoke(new Action(() => LogSection("GAMING"))); }
-                if (doNetwork)  { Tick("→ Applying Network tweaks…");             TweakEngine.ApplyNetworkTweaks();                           Invoke(new Action(() => LogSection("NETWORK"))); }
-                if (doBloat)    { TweakEngine.RemoveBloatware(msg => Tick(msg));                                                              Invoke(new Action(() => LogSection("BLOATWARE REMOVAL"))); }
-                if (doAdvanced) { Tick("→ Applying Advanced tweaks…");            TweakEngine.ApplyAdvancedTweaks(_selectedAdvancedTweaks);   Invoke(new Action(() => LogSection("ADVANCED"))); }
+                void Tick(string msg)
+                {
+                    _doneTweaks++;
+                    Invoke(new Action(() =>
+                    {
+                        SetProgress(_doneTweaks, _totalTweaks);
+                        AppendLog(msg);
+                    }));
+                }
+
+                if (doPerf)  { catNames.Add("Performance");    Tick("→ Performance tweaks…");     TweakEngine.ApplyPerformanceTweaks();                    Invoke(new Action(() => LogSection("PERFORMANCE"))); }
+                if (doPriv)  { catNames.Add("Privacy");        Tick("→ Privacy tweaks…");          TweakEngine.ApplyPrivacyTweaks();                        Invoke(new Action(() => LogSection("PRIVACY"))); }
+                if (doResp)  { catNames.Add("Responsiveness"); Tick("→ Responsiveness tweaks…");   TweakEngine.ApplySystemResponsiveness();                 Invoke(new Action(() => LogSection("RESPONSIVENESS"))); }
+                if (doGame)  { catNames.Add("Gaming");         Tick("→ Gaming tweaks…");           TweakEngine.ApplyGamingTweaks();                         Invoke(new Action(() => LogSection("GAMING"))); }
+                if (doNet)   { catNames.Add("Network");        Tick("→ Network tweaks…");          TweakEngine.ApplyNetworkTweaks();                        Invoke(new Action(() => LogSection("NETWORK"))); }
+                if (doBloat) { catNames.Add("Bloatware");      TweakEngine.RemoveBloatware(m => Tick(m));                                                   Invoke(new Action(() => LogSection("BLOATWARE"))); }
+                if (doAdv && _advancedKeys.Count > 0)
+                             { catNames.Add("Advanced");       Tick("→ Advanced tweaks…");         TweakEngine.ApplyAdvancedTweaks(_advancedKeys);          Invoke(new Action(() => LogSection("ADVANCED"))); }
             });
 
             var results = TweakEngine.GetResults();
-            int pass = results.Count(r => r.Success), fail = results.Count(r => !r.Success);
-            _passLabel.Text = pass.ToString(); _failLabel.Text = fail.ToString();
-            Log($"══ COMPLETE: {pass} succeeded, {fail} failed. Reboot recommended. ══", T.ACCENT);
-            SetStatus($"Complete — {pass} ok, {fail} failed.", T.ACCENT);
-            SetProgress(_totalTweaks, _totalTweaks); progressBar.BackColor = T.ACCENT;
+            int pass = results.Count(r => r.Success);
+            int fail = results.Count(r => !r.Success);
 
-            // ── Write changelog entry ─────────────────────────────────────
+            foreach (var t in selected) t.SetStatus(TileStatus.Done);
+
+            SetProgress(_totalTweaks, _totalTweaks);
+            SetStatus($"Complete — {pass} succeeded, {fail} failed.",
+                fail == 0 ? Theme.SUCCESS : Theme.WARNING);
+            AppendLog($"══ COMPLETE: {pass} succeeded, {fail} failed. Reboot recommended. ══");
+
             ChangeLog.AddEntry(new ChangeLog.RunEntry
             {
-                Categories   = string.Join(", ", cats),
-                Passed       = pass, Failed = fail,
+                Categories   = string.Join(", ", catNames),
+                Passed       = pass,
+                Failed       = fail,
                 RestorePoint = rpCreated,
                 Details      = logDetails
             });
-            RefreshChangelogTab();
 
-            btnRunSelected.Enabled = btnRunAll.Enabled = true;
-            RefreshUndoButtons();
+            _runBtn.Text    = "⚡  Run Selected";
+            _runBtn.Enabled = true;
+            _isRunning      = false;
+            UpdateSelCount();
             PromptReboot();
         }
 
-        void PromptReboot()
+        // ─────────────────────────────────────────────────────────────────
+        //  UNDO
+        // ─────────────────────────────────────────────────────────────────
+        private async void OnUndoClicked(object sender, EventArgs e)
         {
-            var r = MessageBox.Show("Some tweaks require a reboot to take full effect.\n\nWould you like to reboot now?",
-                "Reboot Required", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2);
-            if (r == DialogResult.Yes)
+            var undoCats = _tiles
+                .Where(t => t.IsChecked && TweakEngine.HasBackup(t.Entry.Category))
+                .Select(t => t.Entry.Category)
+                .Distinct()
+                .ToList();
+
+            if (undoCats.Count == 0) return;
+            _undoBtn.Enabled = false;
+
+            foreach (var cat in undoCats)
             {
-                Log("Initiating reboot…", T.WARN);
-                Process.Start(new ProcessStartInfo { FileName = "shutdown.exe", Arguments = "/r /t 10 /c \"Win11 Optimizer: Rebooting to apply tweaks.\"", UseShellExecute = false, CreateNoWindow = true });
-                MessageBox.Show("Your PC will reboot in 10 seconds.\n\nTo cancel, open a command prompt and run:\n  shutdown /a", "Rebooting in 10 seconds", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                AppendLog($"↩ Undoing {cat}…");
+                List<TweakEngine.TweakResult> res = null;
+
+                await Task.Run(() =>
+                {
+                    res = cat switch
+                    {
+                        "Performance"    => TweakEngine.UndoPerformanceTweaks(),
+                        "Privacy"        => TweakEngine.UndoPrivacyTweaks(),
+                        "Responsiveness" => TweakEngine.UndoResponsivenessTweaks(),
+                        "Gaming"         => TweakEngine.UndoGamingTweaks(),
+                        "Network"        => TweakEngine.UndoNetworkTweaks(),
+                        "Advanced"       => TweakEngine.UndoAdvancedTweaks(),
+                        _                => new List<TweakEngine.TweakResult>()
+                    };
+                });
+
+                AppendLog($"  ↩ {cat} done — {res.Count(r => r.Success)} restored.");
             }
+
+            SetStatus("Undo complete. Reboot recommended.", Theme.SUCCESS);
+            UpdateSelCount();
+        }
+
+        // ─────────────────────────────────────────────────────────────────
+        //  HELPERS
+        // ─────────────────────────────────────────────────────────────────
+        private void SetStatus(string msg, Color col = default)
+        {
+            if (InvokeRequired) { Invoke(new Action(() => SetStatus(msg, col))); return; }
+            _statusLabel.Text      = msg;
+            _statusLabel.ForeColor = col == default ? Theme.TEXT_SEC : col;
+        }
+
+        private void SetProgress(int done, int total)
+        {
+            if (InvokeRequired) { Invoke(new Action(() => SetProgress(done, total))); return; }
+            int w = total == 0 ? 0 : (int)((double)_progOuter.Width * done / total);
+            _progInner.Width = w;
+        }
+
+        private void AppendLog(string msg)
+        {
+            if (_logBox.InvokeRequired)
+            { _logBox.Invoke(new Action(() => AppendLog(msg))); return; }
+            _logBox.AppendText($"[{DateTime.Now:HH:mm:ss}] {msg}\n");
+            _logBox.ScrollToCaret();
+        }
+
+        private void PromptReboot()
+        {
+            var r = MessageBox.Show(
+                "Some tweaks require a reboot to take full effect.\n\nWould you like to reboot now?",
+                "Reboot Required", MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question, MessageBoxDefaultButton.Button2);
+            if (r == DialogResult.Yes)
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName        = "shutdown.exe",
+                    Arguments       = "/r /t 10 /c \"Win11 Optimizer: Rebooting to apply tweaks.\"",
+                    UseShellExecute = false,
+                    CreateNoWindow  = true
+                });
         }
     }
 
-    // ── Advanced tweak dialog ─────────────────────────────────────────────
-    public class AdvancedTweakDialog : Form
-    {
-        public HashSet<string> SelectedTweaks { get; private set; } = new();
+    // ═══════════════════════════════════════════════════════════════════════
+    //  TILE STATUS ENUM
+    // ═══════════════════════════════════════════════════════════════════════
+    public enum TileStatus { None, Running, Done }
 
-        static readonly (string Key, string Title, string Desc, string Risk)[] TWEAKS =
+    // ═══════════════════════════════════════════════════════════════════════
+    //  TWEAK TILE  (exact mirror of AppTile from App Downloader)
+    // ═══════════════════════════════════════════════════════════════════════
+    public class TweakTile : Panel
+    {
+        private bool       _checked;
+        private TileStatus _status      = TileStatus.None;
+        private string     _statusText  = "";
+        private Color      _statusColor = Theme.TEXT_SEC;
+
+        public TweakEntry Entry { get; }
+
+        public event EventHandler CheckedChanged;
+
+        public bool IsChecked
         {
-            ("ProcessorScheduling", "Processor Scheduling → Programs",
-             "Sets Win32PrioritySeparation to 38 (0x26), giving the foreground app a much larger CPU time slice. Best for gaming and interactive workloads.",
-             "Low — standard Windows tuning. Revert by setting Win32PrioritySeparation back to 2."),
-            ("DisableDynamicTick", "Disable Dynamic Tick (IRQ8 / High-Res Timer)",
-             "Runs 'bcdedit /set disabledynamictick yes'. Forces a constant high-resolution timer, reducing micro-stutter in games and real-time audio.",
-             "Low — boot config only. Undo: 'bcdedit /deletevalue disabledynamictick'. Reboot required."),
-            ("DisableCpuThrottling", "Disable CPU Throttling for Background Processes",
-             "Sets the THROTTLING_POLICY power setting to 0, preventing Windows from aggressively pulling CPU clocks from background tasks during gaming.",
-             "Medium — increases CPU power draw and heat slightly. Not recommended on battery."),
-            ("EnableTrim", "Ensure SSD TRIM is Enabled",
-             "Runs 'fsutil behavior set disabledeletenotify 0' to guarantee TRIM notifications are sent to your SSD, keeping write speeds consistent over time.",
-             "Very Low — this is the Windows default. Safe on any SSD."),
-            ("AggressiveAnimations", "Aggressive Animation Disabling",
-             "Disables UserPreferencesMask, TaskbarAnimations, MinAnimate, ListviewShadow. Goes beyond VisualFXSetting=2 to eliminate every remaining UI animation.",
-             "Low — purely cosmetic. Undo restores all original values."),
+            get => _checked;
+            set
+            {
+                _checked  = value;
+                BackColor = value ? Theme.SURFACE2 : Theme.SURFACE;
+                Invalidate();
+                CheckedChanged?.Invoke(this, EventArgs.Empty);
+            }
+        }
+
+        // Per-category accent colour
+        private static readonly Dictionary<string, Color> CatAccent = new()
+        {
+            ["Performance"]    = Color.FromArgb( 99, 102, 241),
+            ["Privacy"]        = Color.FromArgb(168,  85, 247),
+            ["Responsiveness"] = Color.FromArgb(  6, 182, 212),
+            ["Gaming"]         = Color.FromArgb( 34, 197,  94),
+            ["Network"]        = Color.FromArgb(251, 191,  36),
+            ["Bloatware"]      = Color.FromArgb(239,  68,  68),
+            ["Advanced"]       = Color.FromArgb(249, 115,  22),
         };
 
-        readonly AppTheme _t;
-        readonly Dictionary<string, CheckBox> _checks = new();
-
-        public AdvancedTweakDialog(AppTheme theme) { _t = theme; BuildUI(); }
-
-        void BuildUI()
+        public TweakTile(TweakEntry entry)
         {
-            Text = "Advanced Tweaks — Review & Confirm";
-            Size = new Size(640, 640); MinimumSize = new Size(580, 520);
-            StartPosition = FormStartPosition.CenterParent;
-            BackColor = _t.BG; ForeColor = _t.TEXT;
-            FormBorderStyle = FormBorderStyle.FixedDialog; MaximizeBox = false;
+            Entry     = entry;
+            Size      = new Size(230, 110);
+            BackColor = Theme.SURFACE;
+            Margin    = new Padding(5);
+            Cursor    = Cursors.Hand;
 
-            var banner = new Panel { Dock = DockStyle.Top, Height = 52, BackColor = Color.FromArgb(38, _t.WARN.R, _t.WARN.G, _t.WARN.B) };
-            banner.Paint += (s, e) =>
+            Color accent = CatAccent.TryGetValue(entry.Category, out var ac) ? ac : Theme.ACCENT;
+
+            // ── Paint ──────────────────────────────────────────────────────
+            Paint += (s, e) =>
             {
-                using var pen = new Pen(Color.FromArgb(70, _t.WARN.R, _t.WARN.G, _t.WARN.B)); e.Graphics.DrawLine(pen, 0, banner.Height - 1, banner.Width, banner.Height - 1);
-                using var bar = new SolidBrush(_t.WARN); e.Graphics.FillRectangle(bar, 0, 0, 4, banner.Height);
-                using var f = new Font("Segoe UI", 10f, FontStyle.Bold); using var b = new SolidBrush(_t.WARN);
-                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-                e.Graphics.DrawString("⚠  These tweaks are more aggressive. Read each description carefully before proceeding.", f, b, new PointF(14, (banner.Height - 18) / 2f));
+                var g = e.Graphics;
+                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+
+                // Border
+                using var borderPen = new Pen(_checked ? accent : Theme.BORDER, 1.5f);
+                g.DrawRectangle(borderPen, 0, 0, Width - 1, Height - 1);
+
+                // Left accent bar
+                using var accentBr = new SolidBrush(accent);
+                g.FillRectangle(accentBr, 0, 0, 3, Height);
+
+                // Checkbox tick
+                if (_checked)
+                {
+                    g.FillRectangle(accentBr, Width - 22, 6, 16, 16);
+                    using var wp = new Pen(Color.White, 2f);
+                    g.DrawLines(wp, new[]
+                    {
+                        new Point(Width - 19, 14),
+                        new Point(Width - 15, 18),
+                        new Point(Width - 9,   9)
+                    });
+                }
+
+                // Status text
+                if (!string.IsNullOrEmpty(_statusText))
+                {
+                    using var sf = new Font("Segoe UI", 7.5f);
+                    using var sb = new SolidBrush(_statusColor);
+                    g.DrawString(_statusText, sf, sb, new PointF(12, Height - 18));
+                }
             };
-            Controls.Add(banner);
 
-            var footer = new Panel { Dock = DockStyle.Bottom, Height = 56, BackColor = _t.SURFACE };
-            footer.Paint += (s, e) => { using var pen = new Pen(_t.BORDER); e.Graphics.DrawLine(pen, 0, 0, footer.Width, 0); };
-            var btnP = new GlowButton("PROCEED", _t.WARN,   new Rectangle(0, 0, 130, 36), _t);
-            var btnC = new GlowButton("CANCEL",  _t.DANGER, new Rectangle(0, 0, 100, 36), _t);
-            btnP.Anchor = btnC.Anchor = AnchorStyles.Right | AnchorStyles.Top;
-            footer.SizeChanged += (s, e) => { btnP.Location = new Point(footer.Width - 248, (footer.Height - 36) / 2); btnC.Location = new Point(footer.Width - 108, (footer.Height - 36) / 2); };
-            btnP.Click += (s, e) => { SelectedTweaks = new HashSet<string>(_checks.Where(kv => kv.Value.Checked).Select(kv => kv.Key)); DialogResult = DialogResult.OK; Close(); };
-            btnC.Click += (s, e) => { DialogResult = DialogResult.Cancel; Close(); };
-            footer.Controls.Add(btnP); footer.Controls.Add(btnC);
-            Controls.Add(footer);
-
-            var scroll = new Panel { Dock = DockStyle.Fill, AutoScroll = true, BackColor = _t.BG, Padding = new Padding(12, 8, 12, 8) };
-            Controls.Add(scroll);
-
-            int y = 8;
-            foreach (var (key, title, desc, risk) in TWEAKS)
+            // ── Icon ───────────────────────────────────────────────────────
+            var iconLbl = new Label
             {
-                var card = new Panel { Left = 0, Top = y, Width = scroll.ClientSize.Width - 24, BackColor = _t.CARD, Padding = new Padding(14, 10, 14, 12), Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right };
-                card.Paint += (s, e) => { using var pen = new Pen(_t.BORDER); e.Graphics.DrawRectangle(pen, 0, 0, card.Width - 1, card.Height - 1); using var stripe = new SolidBrush(_t.WARN); e.Graphics.FillRectangle(stripe, 0, 0, 3, card.Height); };
+                Text      = entry.Icon,
+                Font      = new Font("Segoe UI Emoji", 18f),
+                AutoSize  = false,
+                Size      = new Size(40, 40),
+                Location  = new Point(8, 8),
+                BackColor = Color.Transparent,
+                TextAlign = ContentAlignment.MiddleCenter
+            };
 
-                var chk = new CheckBox { Text = title, Font = new Font("Segoe UI", 10.5f, FontStyle.Bold), ForeColor = _t.WARN, Checked = true, AutoSize = false, Width = card.Width - 30, Height = 28, Location = new Point(14, 10), BackColor = _t.CARD, FlatStyle = FlatStyle.Flat };
-                chk.FlatAppearance.BorderColor = _t.WARN; chk.FlatAppearance.CheckedBackColor = _t.WARN; chk.FlatAppearance.MouseOverBackColor = _t.CARD;
+            // ── Name ───────────────────────────────────────────────────────
+            var nameLbl = new Label
+            {
+                Text         = entry.Name,
+                Font         = new Font("Segoe UI Semibold", 9f),
+                ForeColor    = Theme.TEXT_PRI,
+                AutoSize     = false,
+                Size         = new Size(170, 40),
+                Location     = new Point(54, 8),
+                BackColor    = Color.Transparent,
+                AutoEllipsis = true,
+                UseMnemonic  = false
+            };
 
-                int dw = card.Width - 42;
-                var dL = new Label { Text = desc, Font = new Font("Segoe UI", 9f, FontStyle.Regular), ForeColor = _t.TEXT, AutoSize = false, Width = dw, Location = new Point(28, 44), BackColor = _t.CARD };
-                dL.Height = MeasureH(desc, dL.Font, dw);
-                var rL = new Label { Text = $"⚠ Risk: {risk}", Font = new Font("Segoe UI", 8.5f, FontStyle.Italic), ForeColor = Color.FromArgb(160, _t.WARN.R, _t.WARN.G, _t.WARN.B), AutoSize = false, Width = dw, Location = new Point(28, dL.Bottom + 6), BackColor = _t.CARD };
-                rL.Height = MeasureH(risk, rL.Font, dw) + 4;
+            // ── Description ────────────────────────────────────────────────
+            var descLbl = new Label
+            {
+                Text      = entry.Description,
+                Font      = new Font("Segoe UI", 7.5f),
+                ForeColor = Theme.TEXT_SEC,
+                AutoSize  = false,
+                Size      = new Size(218, 30),
+                Location  = new Point(10, 68),
+                BackColor = Color.Transparent
+            };
 
-                card.Controls.Add(chk); card.Controls.Add(dL); card.Controls.Add(rL);
-                card.Height = rL.Bottom + 12;
-                scroll.Controls.Add(card); _checks[key] = chk; y += card.Height + 10;
+            // ── Category badge  (mirrors "winget" / "direct" badge in AppTile) ─
+            Color badgeBg = Color.FromArgb(30,  accent.R, accent.G, accent.B);
+            Color badgeFg = Color.FromArgb(180, accent.R, accent.G, accent.B);
+            var catBadge = new Label
+            {
+                Text      = entry.IsAdvanced ? "⚠ advanced" : entry.Category.ToLower(),
+                Font      = new Font("Segoe UI", 7f),
+                ForeColor = badgeFg,
+                BackColor = badgeBg,
+                AutoSize  = true,
+                Location  = new Point(10, 50),
+                Padding   = new Padding(3, 1, 3, 1)
+            };
+
+            Controls.AddRange(new Control[] { iconLbl, nameLbl, descLbl, catBadge });
+
+            // ── Toggle on click (all children bubble up) ───────────────────
+            void Toggle(object s, EventArgs ev) => IsChecked = !_checked;
+            base.Click    += Toggle;
+            iconLbl.Click += Toggle;
+            nameLbl.Click += Toggle;
+            descLbl.Click += Toggle;
+            catBadge.Click += Toggle;
+
+            MouseEnter += (s, ev) => { if (!_checked) BackColor = Color.FromArgb(26, 26, 38); };
+            MouseLeave += (s, ev) => { if (!_checked) BackColor = Theme.SURFACE; };
+        }
+
+        public void SetStatus(TileStatus status)
+        {
+            _status = status;
+            switch (status)
+            {
+                case TileStatus.Running:
+                    _statusText  = "⏳ Running...";
+                    _statusColor = Theme.WARNING;
+                    break;
+                case TileStatus.Done:
+                    _statusText  = "✔ Done";
+                    _statusColor = Theme.SUCCESS;
+                    break;
+                default:
+                    _statusText = "";
+                    break;
             }
-        }
-
-        static int MeasureH(string text, Font font, int width)
-        {
-            using var g = Graphics.FromHwnd(IntPtr.Zero);
-            return (int)Math.Ceiling(g.MeasureString(text, font, width).Height) + 4;
+            Invalidate();
         }
     }
 
-    // ── Custom controls ───────────────────────────────────────────────────
-    public class GlowButton : Control
+    // ═══════════════════════════════════════════════════════════════════════
+    //  SECTION HEADER  (exact mirror of App Downloader SectionHeader)
+    // ═══════════════════════════════════════════════════════════════════════
+    public class SectionHeader : Panel
     {
-        Color _accent; bool _hover, _pressed; AppTheme _theme;
-        public GlowButton(string text, Color accent, Rectangle bounds, AppTheme theme = null)
+        public SectionHeader(string title, string emoji)
         {
-            Text = text; _accent = accent; _theme = theme ?? AppTheme.Dark; Bounds = bounds;
-            Font = new Font("Segoe UI", 9.5f, FontStyle.Bold); ForeColor = Color.FromArgb(10, 10, 14); BackColor = _theme.BG; Cursor = Cursors.Hand;
-            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint | ControlStyles.DoubleBuffer, true);
+            // Height fixed; width is set dynamically when added to the
+            // FlowLayoutPanel via ParentChanged so it never exceeds the
+            // panel's client width (which would create a horizontal scrollbar).
+            Height    = 44;
+            Margin    = new Padding(5, 16, 5, 4);
+            BackColor = Color.Transparent;
+
+            var bar = new Panel
+            {
+                BackColor = Theme.ACCENT,
+                Size      = new Size(3, 26),
+                Location  = new Point(4, 9)
+            };
+
+            var lbl = new Label
+            {
+                Text      = $"{emoji}  {title}",
+                Font      = new Font("Segoe UI Semibold", 11f),
+                ForeColor = Theme.TEXT_PRI,
+                AutoSize  = true,
+                Location  = new Point(14, 10),
+                BackColor = Color.Transparent
+            };
+
+            Paint += (s, e) =>
+            {
+                int lineY = Height - 6;
+                using var pen = new Pen(Color.FromArgb(45, 45, 65), 1);
+                e.Graphics.DrawLine(pen, lbl.Right + 10, lineY, Width - 20, lineY);
+            };
+
+            Controls.AddRange(new Control[] { bar, lbl });
+
+            // Fit width to parent whenever we are added to the FlowLayoutPanel
+            ParentChanged += (s, e) => FitToParent();
+            // Also refit if the parent resizes (e.g. window resize)
+            ParentChanged += (s, e) =>
+            {
+                if (Parent != null)
+                    Parent.SizeChanged += (ps, pe) => FitToParent();
+            };
         }
-        public void ApplyTheme(AppTheme t) { _theme = t; BackColor = t.BG; Invalidate(); }
-        protected override void OnMouseEnter(EventArgs e)     { _hover   = true;  Invalidate(); }
-        protected override void OnMouseLeave(EventArgs e)     { _hover   = false; Invalidate(); }
-        protected override void OnMouseDown(MouseEventArgs e) { _pressed = true;  Invalidate(); }
-        protected override void OnMouseUp(MouseEventArgs e)   { _pressed = false; Invalidate(); }
-        protected override void OnPaint(PaintEventArgs e)
+
+        private void FitToParent()
         {
-            var g = e.Graphics; g.SmoothingMode = SmoothingMode.AntiAlias;
-            var rc = new Rectangle(0, 0, Width, Height);
-            Color fill = _pressed ? Color.FromArgb(180, _accent.R, _accent.G, _accent.B) : _hover ? _accent : Color.FromArgb(220, _accent.R, _accent.G, _accent.B);
-            using var br = new SolidBrush(fill); g.FillRectangle(br, rc);
-            if (_hover && !_pressed) { using var pen = new Pen(Color.FromArgb(160, _accent.R, _accent.G, _accent.B), 1.5f); g.DrawRectangle(pen, 1, 1, Width - 3, Height - 3); }
-            Color tc = _theme.Name == "Light" ? Color.FromArgb(20, 20, 30) : Color.FromArgb(10, 10, 14);
-            using var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
-            using var tb = new SolidBrush(tc); g.DrawString(Text, Font, tb, rc, sf);
+            if (Parent == null) return;
+            // Account for the FlowLayoutPanel padding and our own margin
+            int w = Parent.ClientSize.Width
+                  - Parent.Padding.Horizontal
+                  - Margin.Horizontal
+                  - SystemInformation.VerticalScrollBarWidth
+                  - 2;
+            if (w > 0) Width = w;
+            Invalidate();
         }
     }
 
-    public class ThemeToggleButton : Control
+    // ═══════════════════════════════════════════════════════════════════════
+    //  FLAT BUTTON
+    // ═══════════════════════════════════════════════════════════════════════
+    public class FlatButton : Button
     {
-        bool _isDark = true, _hover;
-        public bool IsDark { get => _isDark; set { _isDark = value; Invalidate(); } }
-        public ThemeToggleButton() { SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint | ControlStyles.DoubleBuffer, true); Cursor = Cursors.Hand; }
-        protected override void OnMouseEnter(EventArgs e) { _hover = true;  Invalidate(); }
-        protected override void OnMouseLeave(EventArgs e) { _hover = false; Invalidate(); }
-        protected override void OnPaint(PaintEventArgs e)
+        public FlatButton(string text, Color bg)
         {
-            var g = e.Graphics; g.SmoothingMode = SmoothingMode.AntiAlias; g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
-            Color pb = _isDark ? Color.FromArgb(_hover ? 60 : 40, 255, 255, 255) : Color.FromArgb(_hover ? 60 : 40, 0, 0, 0);
-            Color pd = _isDark ? Color.FromArgb(80, 255, 255, 255) : Color.FromArgb(80, 0, 0, 0);
-            using var bgb = new SolidBrush(pb); using var pp = new Pen(pd, 1.5f);
-            g.FillRoundedRectangle(bgb, 0, 0, Width - 1, Height - 1, 8); g.DrawRoundedRectangle(pp, 0, 0, Width - 1, Height - 1, 8);
-            string icon = _isDark ? "🌙" : "☀", label = _isDark ? " Dark" : " Light";
-            Color tc = _isDark ? Color.FromArgb(200, 200, 220) : Color.FromArgb(40, 40, 60);
-            using var iF = new Font("Segoe UI Emoji", 13f); using var lF = new Font("Segoe UI", 9f, FontStyle.Bold); using var tb = new SolidBrush(tc);
-            int mid = Width / 2;
-            g.DrawString(icon,  iF, tb, new RectangleF(0, 0, mid, Height),   new StringFormat { Alignment = StringAlignment.Far,  LineAlignment = StringAlignment.Center });
-            g.DrawString(label, lF, tb, new RectangleF(mid, 0, mid, Height), new StringFormat { Alignment = StringAlignment.Near, LineAlignment = StringAlignment.Center });
+            Text      = text;
+            BackColor = bg;
+            ForeColor = Theme.TEXT_PRI;
+            FlatStyle = FlatStyle.Flat;
+            Cursor    = Cursors.Hand;
+            FlatAppearance.BorderSize           = 0;
+            FlatAppearance.MouseOverBackColor   = ControlPaint.Light(bg, 0.08f);
+            FlatAppearance.MouseDownBackColor   = ControlPaint.Dark(bg, 0.08f);
         }
     }
 
-    static class GraphicsExtensions
-    {
-        public static void FillRoundedRectangle(this Graphics g, Brush b, int x, int y, int w, int h, int r)
-        { using var p = RP(x, y, w, h, r); g.FillPath(b, p); }
-        public static void DrawRoundedRectangle(this Graphics g, Pen p, int x, int y, int w, int h, int r)
-        { using var path = RP(x, y, w, h, r); g.DrawPath(p, path); }
-        static GraphicsPath RP(int x, int y, int w, int h, int r)
-        {
-            var p = new GraphicsPath();
-            p.AddArc(x, y, r * 2, r * 2, 180, 90); p.AddArc(x + w - r * 2, y, r * 2, r * 2, 270, 90);
-            p.AddArc(x + w - r * 2, y + h - r * 2, r * 2, r * 2, 0, 90); p.AddArc(x, y + h - r * 2, r * 2, r * 2, 90, 90);
-            p.CloseFigure(); return p;
-        }
-    }
-
+    // ═══════════════════════════════════════════════════════════════════════
+    //  DARK RICH TEXT BOX
+    // ═══════════════════════════════════════════════════════════════════════
     public class DarkRichTextBox : RichTextBox
     {
         [DllImport("uxtheme.dll", CharSet = CharSet.Unicode)]
-        private static extern int SetWindowTheme(IntPtr hwnd, string pszSubAppName, string pszSubIdList);
-        protected override void OnHandleCreated(EventArgs e) { base.OnHandleCreated(e); SetWindowTheme(Handle, "DarkMode_Explorer", null); }
+        private static extern int SetWindowTheme(IntPtr hwnd, string app, string id);
+        protected override void OnHandleCreated(EventArgs e)
+        {
+            base.OnHandleCreated(e);
+            SetWindowTheme(Handle, "DarkMode_Explorer", null);
+        }
     }
 
-    // ── Entry point ───────────────────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════════════
+    //  ENTRY POINT
+    // ═══════════════════════════════════════════════════════════════════════
     static class Program
     {
         [STAThread]
@@ -1040,42 +1478,32 @@ namespace Win11Optimizer
             {
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
-                Application.ThreadException += (s, e) => LogCrash(e.Exception);
-                AppDomain.CurrentDomain.UnhandledException += (s, e) => LogCrash(e.ExceptionObject as Exception);
+                Application.ThreadException +=
+                    (s, e) => LogCrash(e.Exception);
+                AppDomain.CurrentDomain.UnhandledException +=
+                    (s, e) => LogCrash(e.ExceptionObject as Exception);
 
-                // ── Detect Windows version ─────────────────────────────────
                 WinVersion.Detect();
-
-                // ── Load changelog ─────────────────────────────────────────
                 ChangeLog.Load();
 
-                // ── Admin check ────────────────────────────────────────────
-                if (!IsRunningAsAdmin())
+                if (!IsAdmin())
                 {
                     var choice = MessageBox.Show(
-                        "Win11 Optimizer needs Administrator privileges to apply registry and service tweaks.\n\n" +
+                        "Win11 Optimizer needs Administrator privileges to apply " +
+                        "registry and service tweaks.\n\n" +
                         "Would you like to relaunch as Administrator now?",
                         "Administrator Required",
-                        MessageBoxButtons.YesNo,
-                        MessageBoxIcon.Warning,
+                        MessageBoxButtons.YesNo, MessageBoxIcon.Warning,
                         MessageBoxDefaultButton.Button1);
 
                     if (choice == DialogResult.Yes)
                     {
-                        try
-                        {
-                            Process.Start(new ProcessStartInfo
-                            {
-                                FileName        = Application.ExecutablePath,
-                                UseShellExecute = true,
-                                Verb            = "runas"   // triggers UAC prompt
-                            });
-                        }
-                        catch { /* user declined UAC — fall through to warning mode */ }
-                        return; // exit this non-elevated instance
+                        try { Process.Start(new ProcessStartInfo
+                            { FileName = Application.ExecutablePath,
+                              UseShellExecute = true, Verb = "runas" }); }
+                        catch { }
+                        return;
                     }
-                    // User chose No — show a persistent warning banner inside the app
-                    // by setting a flag the form can read
                     AdminWarning.Show = true;
                 }
 
@@ -1084,7 +1512,7 @@ namespace Win11Optimizer
             catch (Exception ex) { LogCrash(ex); }
         }
 
-        static bool IsRunningAsAdmin()
+        static bool IsAdmin()
         {
             try
             {
@@ -1100,15 +1528,10 @@ namespace Win11Optimizer
             {
                 string lp = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "crash.log");
                 File.AppendAllText(lp, $"[{DateTime.Now}]\n{ex}\n\n");
-                MessageBox.Show($"Crash logged to:\n{lp}\n\n{ex?.Message}", "Win11Optimizer — Startup Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Crash logged to:\n{lp}\n\n{ex?.Message}",
+                    "Win11Optimizer — Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             catch { }
         }
-    }
-
-    // ── Admin warning flag (read by MainForm if launched without elevation) ─
-    public static class AdminWarning
-    {
-        public static bool Show { get; set; } = false;
     }
 }
