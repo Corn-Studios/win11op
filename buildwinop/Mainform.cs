@@ -79,6 +79,9 @@ namespace Win11Optimizer
                 Name = "Disable Memory Compression",
                 Description = "Reduces CPU overhead when RAM is under pressure" },
 
+            new TweakEntry { Category = "Performance", Icon = "⏰", DefaultOn = true,
+                Name = "Set Timer Resolution to 0.5ms",
+                Description = "Calls timeBeginPeriod(1) + registry key for sub-ms scheduler ticks" },
             // ── PRIVACY ───────────────────────────────────────────────────
             new TweakEntry { Category = "Privacy", Icon = "📡", DefaultOn = true,
                 Name = "Disable Telemetry",
@@ -120,6 +123,15 @@ namespace Win11Optimizer
                 Name = "Disable Feedback Requests",
                 Description = "Prevents Windows asking you to rate/review features" },
 
+            new TweakEntry { Category = "Privacy", Icon = "💬", DefaultOn = true,
+                Name = "Disable Chat / Teams Taskbar Icon",
+                Description = "Removes the Teams/Chat pinned icon from the taskbar" },
+            new TweakEntry { Category = "Privacy", Icon = "🤖", DefaultOn = true,
+                Name = "Disable Windows Recall",
+                Description = "Kills AI screenshot feature on Copilot+ PCs (no-op otherwise)" },
+            new TweakEntry { Category = "Privacy", Icon = "🚫", DefaultOn = true,
+                Name = "Block Telemetry Hosts",
+                Description = "Adds 35 Microsoft telemetry domains to the hosts file (0.0.0.0)" },
             // ── RESPONSIVENESS ────────────────────────────────────────────
             new TweakEntry { Category = "Responsiveness", Icon = "🖱", DefaultOn = true,
                 Name = "Instant Menu Show",
@@ -163,6 +175,12 @@ namespace Win11Optimizer
                 Name = "Disable Fullscreen Optimisations",
                 Description = "Forces exclusive fullscreen for lower input latency" },
 
+            new TweakEntry { Category = "Gaming", Icon = "🎯", DefaultOn = false,
+                Name = "GPU Power: Prefer Maximum Performance",
+                Description = "Sets D3D power policy to never downclock the GPU" },
+            new TweakEntry { Category = "Gaming", Icon = "🟢", DefaultOn = false,
+                Name = "Disable NVIDIA Telemetry Services",
+                Description = "Stops NvTelemetryContainer & NvDisplayContainerLS phoning home" },
             // ── NETWORK ───────────────────────────────────────────────────
             new TweakEntry { Category = "Network", Icon = "📶", DefaultOn = false,
                 Name = "Disable Nagle's Algorithm",
@@ -180,6 +198,9 @@ namespace Win11Optimizer
                 Name = "Max Multimedia Responsiveness",
                 Description = "Sets SystemResponsiveness to 0 for games/audio" },
 
+            new TweakEntry { Category = "Network", Icon = "🔐", DefaultOn = false,
+                Name = "DNS over HTTPS (Cloudflare 1.1.1.1)",
+                Description = "Enables DoH via Windows DNS Client, routes queries encrypted" },
             // ── BLOATWARE ─────────────────────────────────────────────────
             new TweakEntry { Category = "Bloatware", Icon = "📰", DefaultOn = false,
                 Name = "Remove Bing News & Weather",
@@ -211,6 +232,23 @@ namespace Win11Optimizer
             new TweakEntry { Category = "Bloatware", Icon = "🗃", DefaultOn = false,
                 Name = "Remove 3D Viewer & Print 3D",
                 Description = "Removes legacy 3D apps nobody asked for" },
+
+            // ── SECURITY HARDENING ──────────────────────────────────────────────
+            new TweakEntry { Category = "Security", Icon = "🔇", DefaultOn = false,
+                Name = "Disable AutoRun / AutoPlay",
+                Description = "Blocks autorun.inf and AutoPlay on all drive types" },
+            new TweakEntry { Category = "Security", Icon = "🖥", DefaultOn = false,
+                Name = "Disable Remote Desktop (RDP)",
+                Description = "Refuses all inbound RDP connections, closes firewall rule" },
+            new TweakEntry { Category = "Security", Icon = "🪟", DefaultOn = false,
+                Name = "Disable SMBv1",
+                Description = "Removes the WannaCry/EternalBlue-vulnerable SMBv1 protocol" },
+            new TweakEntry { Category = "Security", Icon = "📡", DefaultOn = false,
+                Name = "Disable NetBIOS over TCP/IP",
+                Description = "Stops NetBIOS on all adapters — prevents NBNS poisoning" },
+            new TweakEntry { Category = "Security", Icon = "🛡", DefaultOn = false,
+                Name = "Ensure Defender Real-Time Protection",
+                Description = "Forces Defender real-time monitoring ON via policy + cmdlet" },
 
             // ── ADVANCED ──────────────────────────────────────────────────
             new TweakEntry { Category = "Advanced", Icon = "⚙", DefaultOn = false, IsAdvanced = true, AdvancedKey = "ProcessorScheduling",
@@ -344,7 +382,7 @@ namespace Win11Optimizer
         private static readonly string[] SidebarCategories =
         {
             "All", "Performance", "Privacy", "Responsiveness",
-            "Gaming", "Network", "Bloatware", "Advanced", "History"
+            "Gaming", "Network", "Bloatware", "Advanced", "Security", "History"
         };
 
         private static readonly Dictionary<string, string> CatEmoji = new()
@@ -357,6 +395,7 @@ namespace Win11Optimizer
             ["Network"]        = "🌐",
             ["Bloatware"]      = "🗑",
             ["Advanced"]       = "⚠",
+            ["Security"]       = "🔒",
             ["History"]        = "📋",
         };
 
@@ -655,7 +694,7 @@ namespace Win11Optimizer
         private static readonly string[] CategoryOrder =
         {
             "Performance", "Privacy", "Responsiveness",
-            "Gaming", "Network", "Bloatware", "Advanced"
+            "Gaming", "Network", "Bloatware", "Advanced", "Security"
         };
 
         private void PopulateGrid(string filter)
@@ -1015,7 +1054,8 @@ namespace Win11Optimizer
             bool doGame  = cats.Contains("Gaming");
             bool doNet   = cats.Contains("Network");
             bool doBloat = cats.Contains("Bloatware");
-            bool doAdv   = cats.Contains("Advanced");
+            bool doAdv      = cats.Contains("Advanced");
+            bool doSecurity = cats.Contains("Security");
 
             // Collect advanced keys from checked advanced tiles
             _advancedKeys = selected
@@ -1035,9 +1075,9 @@ namespace Win11Optimizer
                 rpCreated = ok;
             }
 
-            _totalTweaks = (doPerf ? 10 : 0) + (doPriv ? 13 : 0) + (doResp ? 7 : 0)
-                         + (doGame ? 6 : 0) + (doNet ? 5 : 0) + (doBloat ? 10 : 0)
-                         + (doAdv ? _advancedKeys.Count : 0);
+            _totalTweaks = (doPerf ? 10 : 0) + (doPriv ? 16 : 0) + (doResp ? 7 : 0)
+                         + (doGame ? 8 : 0) + (doNet ? 6 : 0) + (doBloat ? 10 : 0)
+                         + (doAdv ? _advancedKeys.Count : 0) + (doSecurity ? 5 : 0);
             _doneTweaks = 0;
             SetProgress(0, _totalTweaks);
 
@@ -1083,6 +1123,7 @@ namespace Win11Optimizer
                 if (doBloat) { catNames.Add("Bloatware");      TweakEngine.RemoveBloatware(m => Tick(m));                                                   Invoke(new Action(() => LogSection("BLOATWARE"))); }
                 if (doAdv && _advancedKeys.Count > 0)
                              { catNames.Add("Advanced");       Tick("→ Advanced tweaks…");         TweakEngine.ApplyAdvancedTweaks(_advancedKeys);          Invoke(new Action(() => LogSection("ADVANCED"))); }
+                if (doSecurity){ catNames.Add("Security");     Tick("→ Security hardening…");      TweakEngine.ApplySecurityTweaks();                       Invoke(new Action(() => LogSection("SECURITY"))); }
             });
 
             var results = TweakEngine.GetResults();
@@ -1141,6 +1182,7 @@ namespace Win11Optimizer
                         "Gaming"         => TweakEngine.UndoGamingTweaks(),
                         "Network"        => TweakEngine.UndoNetworkTweaks(),
                         "Advanced"       => TweakEngine.UndoAdvancedTweaks(),
+                        "Security"       => TweakEngine.UndoSecurityTweaks(),
                         _                => new List<TweakEngine.TweakResult>()
                     };
                 });
@@ -1235,6 +1277,7 @@ namespace Win11Optimizer
             ["Network"]        = Color.FromArgb(251, 191,  36),
             ["Bloatware"]      = Color.FromArgb(239,  68,  68),
             ["Advanced"]       = Color.FromArgb(249, 115,  22),
+            ["Security"]       = Color.FromArgb( 16, 185, 129),   // emerald green
         };
 
         public TweakTile(TweakEntry entry)
