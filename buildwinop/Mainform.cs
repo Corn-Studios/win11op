@@ -11,9 +11,7 @@ using System.Windows.Forms;
 
 namespace Win11Optimizer
 {
-    // ═══════════════════════════════════════════════════════════════════════
-    //  THEME
-    // ═══════════════════════════════════════════════════════════════════════
+    //  THEME -- colors used throughout the app for a consistent look
     public static class Theme
     {
         public static readonly Color BG         = Color.FromArgb(13, 13, 18);
@@ -29,9 +27,7 @@ namespace Win11Optimizer
         public static readonly Color BORDER     = Color.FromArgb(40, 40, 58);
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    //  TWEAK CATALOG
-    // ═══════════════════════════════════════════════════════════════════════
+    //  TWEAK CATALOG -- defines all available tweaks, their categories, descriptions and how to apply them
     public class TweakEntry
     {
         public string Name        { get; set; }
@@ -42,8 +38,7 @@ namespace Win11Optimizer
         public bool   DefaultOn   { get; set; } = true;
         public string AdvancedKey { get; set; }
         public string TweakKey    { get; set; }
-        // What this tweak actually changes — shown in hover tooltip
-        public string WhatItChanges { get; set; }
+        public string WhatItChanges { get; set; }         // What this tweak actually changes — shown in hover tooltip
     }
 
     public static class TweakCatalog
@@ -353,10 +348,8 @@ namespace Win11Optimizer
         public static IEnumerable<TweakEntry> ForCategory(string cat) =>
             cat == "All" ? All : All.Where(t => t.Category == cat);
     }
+    //  WINDOWS VERSION -- used for display windows version info and for tweak compatibility checks
 
-    // ═══════════════════════════════════════════════════════════════════════
-    //  WINDOWS VERSION
-    // ═══════════════════════════════════════════════════════════════════════
     public static class WinVersion
     {
         public static int    Build       { get; private set; }
@@ -381,9 +374,8 @@ namespace Win11Optimizer
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    //  CHANGE LOG
-    // ═══════════════════════════════════════════════════════════════════════
+    //  TWEAK LOG -- keeps a history of tweak runs, their outcomes and details for the History tab. Stored in a JSON file in the app directory.
+
     public static class ChangeLog
     {
         static readonly string LogFile =
@@ -441,9 +433,8 @@ namespace Win11Optimizer
 
     public static class AdminWarning { public static bool Show { get; set; } = false; }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    //  MAIN FORM
-    // ═══════════════════════════════════════════════════════════════════════
+    //  MAIN FORM -- constructs the entire UI, handles user interactions, runs tweaks and updates the changelog
+
     public class MainForm : Form
     {
         // ── Layout ─────────────────────────────────────────────────────────
@@ -505,6 +496,12 @@ namespace Win11Optimizer
         // ── Log ────────────────────────────────────────────────────────────
         private RichTextBox _logBox;
 
+        // ── Hover tooltip ──────────────────────────────────────────────────
+        private Panel       _tooltip;
+        private Label       _ttTitle;
+        private Label       _ttWhat;
+        private System.Windows.Forms.Timer _ttHideTimer;
+
         // ── State ──────────────────────────────────────────────────────────
         private bool _isRunning = false;
         private int  _totalTweaks, _doneTweaks;
@@ -517,9 +514,8 @@ namespace Win11Optimizer
             if (AdminWarning.Show) _adminBadge.Visible = true;
         }
 
-        // ─────────────────────────────────────────────────────────────────
-        //  INIT
-        // ─────────────────────────────────────────────────────────────────
+        //  INIT -- sets up the entire UI, docks panels and builds the tooltip (which needs to be built before the Layout event)
+
         private void InitUI()
         {
             Text            = "Win11 Optimizer";
@@ -548,6 +544,7 @@ namespace Win11Optimizer
             Controls.Add(_bottomBar);
             Controls.Add(_topBar);
             Controls.Add(_logPanel);
+            BuildTooltip();
         }
 
         private void LayoutAll()
@@ -568,9 +565,8 @@ namespace Win11Optimizer
             }
         }
 
-        // ─────────────────────────────────────────────────────────────────
-        //  TOP BAR
-        // ─────────────────────────────────────────────────────────────────
+        //  TOP BAR -- contains the app title, Windows version badge, admin warning badge and GitHub link
+
         private void BuildTopBar()
         {
             _topBar = new Panel { BackColor = Theme.SURFACE, Height = 60 };
@@ -628,9 +624,8 @@ namespace Win11Optimizer
                 { titleLbl, _winVerBadge, _adminBadge, ghLink });
         }
 
-        // ─────────────────────────────────────────────────────────────────
-        //  SIDEBAR
-        // ─────────────────────────────────────────────────────────────────
+        //  SIDEBAR --
+
         private void BuildSidebar()
         {
             _sidebar = new Panel { BackColor = Theme.SURFACE, Width = 200 };
@@ -703,10 +698,42 @@ namespace Win11Optimizer
                 ? Theme.ACCENT_HOV
                 : Color.FromArgb(35, 35, 50);
 
+            // Badge paint — draws a small pill with selection count on the right
+            btn.Paint += (s, e) =>
+            {
+                int selCount = cat == "All"
+                    ? _tiles.Count(t => t.IsChecked)
+                    : _tiles.Count(t => t.IsChecked && t.Entry.Category == cat);
+                if (selCount == 0) return;
+
+                string badge = selCount.ToString();
+                bool   isActive = cat == _activeCategory;
+                Color  pillBg   = isActive
+                    ? Color.FromArgb(60, 255, 255, 255)
+                    : Color.FromArgb(50, Theme.ACCENT.R, Theme.ACCENT.G, Theme.ACCENT.B);
+                Color  pillFg   = isActive ? Color.White : Theme.ACCENT;
+
+                using var badgeFont = new Font("Segoe UI", 7.5f, FontStyle.Bold);
+                var g = e.Graphics;
+                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+
+                SizeF  sz      = g.MeasureString(badge, badgeFont);
+                int    pw      = (int)sz.Width + 10;
+                int    ph      = 16;
+                int    px      = btn.Width - pw - 8;
+                int    py      = (btn.Height - ph) / 2;
+
+                using var pillBr = new SolidBrush(pillBg);
+                g.FillRoundedRect(pillBr, px, py, pw, ph, 8);
+                using var textBr = new SolidBrush(pillFg);
+                g.DrawString(badge, badgeFont, textBr,
+                    px + (pw - sz.Width) / 2f,
+                    py + (ph - sz.Height) / 2f);
+            };
+
             btn.Click += (s, e) =>
             {
                 _activeCategory = cat;
-                // Clear search when switching categories
                 ClearSearch();
                 RefreshSidebar();
                 if (cat == "History") ShowHistory();
@@ -731,9 +758,8 @@ namespace Win11Optimizer
             }
         }
 
-        // ─────────────────────────────────────────────────────────────────
-        //  MAIN AREA
-        // ─────────────────────────────────────────────────────────────────
+        //  MAIN AREA -- contains the search bar, the grid of tweak tiles and the history panel (which is hidden when not in use)
+
         private void BuildMainArea()
         {
             _mainArea = new Panel { BackColor = Theme.BG };
@@ -766,9 +792,8 @@ namespace Win11Optimizer
             _mainArea.Controls.Add(_searchBar); // add last so it docks on top
         }
 
-        // ─────────────────────────────────────────────────────────────────
-        //  SEARCH BAR  (new in v3)
-        // ─────────────────────────────────────────────────────────────────
+        //  SEARCH BAR -- contains the search box, clear button and preset buttons. Also handles search input and filtering the grid
+
         private void BuildSearchBar()
         {
             _searchBar = new Panel
@@ -945,9 +970,8 @@ namespace Win11Optimizer
             });
         }
 
-        // ─────────────────────────────────────────────────────────────────
-        //  SEARCH LOGIC  (new in v3)
-        // ─────────────────────────────────────────────────────────────────
+        //  SEARCH LOGIC -- filters the visible tiles in the grid based on the search query, matching against the tweak's name, description and category. Also hides section headers that have no visible tiles.
+
         private void ApplySearchFilter()
         {
             if (string.IsNullOrEmpty(_searchQuery))
@@ -1005,9 +1029,8 @@ namespace Win11Optimizer
             UpdateSelCount();
         }
 
-        // ─────────────────────────────────────────────────────────────────
-        //  PRESETS  (new in v3)
-        // ─────────────────────────────────────────────────────────────────
+        //  PRESETS -- each preset applies a specific combination of tweaks by checking/unchecking tiles in the grid. Presets do not filter the grid or change categories, so they can be applied on top of any search or category view. Applying a preset while on the History tab will switch to All first since History doesn't support checkboxes.
+
         private void ApplyPreset(string preset)
         {
             // If we're on History, switch to All first
@@ -1079,9 +1102,8 @@ namespace Win11Optimizer
             UpdateSelCount();
         }
 
-        // ─────────────────────────────────────────────────────────────────
-        //  GRID POPULATION
-        // ─────────────────────────────────────────────────────────────────
+        //  GRID POPULATION -- builds the grid of tweak tiles based on the selected category, applying the search filter if there's an active search query. Also handles wiring up the CheckedChanged event for each tile to update the selected count and status, and the MouseEnter/Leave events to show/hide the tooltip.
+
         private static readonly string[] CategoryOrder =
         {
             "Performance", "Privacy", "Responsiveness",
@@ -1117,7 +1139,18 @@ namespace Win11Optimizer
                 {
                     var tile = new TweakTile(entry);
                     tile.IsChecked = entry.DefaultOn;
+                    // Mark already-applied tiles
+                    if (TweakEngine.HasBackup(entry.Category))
+                        tile.SetApplied(true);
                     tile.CheckedChanged += (s, e_) => { UpdateSelCount(); SetStatus("Ready", Theme.TEXT_SEC); };
+                    // Tooltip wiring
+                    tile.MouseEnter += (s, e_) => ShowTooltip((TweakTile)s);
+                    tile.MouseLeave += (s, e_) => HideTooltip();
+                    foreach (Control child in tile.Controls)
+                    {
+                        child.MouseEnter += (s, e_) => ShowTooltip(tile);
+                        child.MouseLeave += (s, e_) => HideTooltip();
+                    }
                     _tiles.Add(tile);
                     _tileGrid.Controls.Add(tile);
                 }
@@ -1139,6 +1172,9 @@ namespace Win11Optimizer
             // Count only visible checked tiles so search doesn't confuse the counter
             int count = _tiles.Count(t => t.IsChecked && t.Visible);
             if (_selCountLabel == null) return;
+            // Repaint sidebar buttons so badges refresh
+            foreach (Control c in _sidebar.Controls)
+                if (c is Button) c.Invalidate();
 
             _selCountLabel.Text = count == 0
                 ? "No tweaks selected"
@@ -1151,9 +1187,8 @@ namespace Win11Optimizer
             }
         }
 
-        // ─────────────────────────────────────────────────────────────────
-        //  HISTORY
-        // ─────────────────────────────────────────────────────────────────
+        //  HISTORY -- builds a vertical list of past runs with details on how many tweaks were applied, how many succeeded/failed, which categories were affected, and any custom details logged by the tweak actions. Also includes a "Clear History" button that wipes all entries after confirmation.
+
         private void ShowHistory()
         {
             _tileGrid.Visible  = false;
@@ -1269,9 +1304,8 @@ namespace Win11Optimizer
             }
         }
 
-        // ─────────────────────────────────────────────────────────────────
-        //  BOTTOM BAR
-        // ─────────────────────────────────────────────────────────────────
+        //  BOTTOM BAR -- contains the status label, selected count, progress bar and action buttons. Also handles the logic for enabling/disabling the Run and Undo buttons based on selection and backup availability
+
         private void BuildBottomBar()
         {
             _bottomBar = new Panel { BackColor = Theme.SURFACE, Height = 130 };
@@ -1366,9 +1400,8 @@ namespace Win11Optimizer
             });
         }
 
-        // ─────────────────────────────────────────────────────────────────
-        //  LOG PANEL
-        // ─────────────────────────────────────────────────────────────────
+        //  LOG PANEL -- a collapsible panel that shows a scrollable log of output messages from the tweak actions. Each message is timestamped and color-coded based on success/failure. The panel can be toggled with the "Log" button in the bottom bar and is hidden by default.
+
         private void BuildLogPanel()
         {
             _logBox = new RichTextBox
@@ -1419,9 +1452,108 @@ namespace Win11Optimizer
             LayoutAll();
         }
 
-        // ─────────────────────────────────────────────────────────────────
-        //  RUN
-        // ─────────────────────────────────────────────────────────────────
+        //  HOVER TOOLTIP -- a custom tooltip panel that appears when hovering over a tweak tile, showing the tweak's name and a description of what it changes. The tooltip positions itself intelligently to avoid going off-screen and has a small delay before hiding to allow moving between tiles without flickering.
+
+        private void BuildTooltip()
+        {
+            _ttTitle = new Label
+            {
+                Font      = new Font("Segoe UI Semibold", 9f),
+                ForeColor = Theme.TEXT_PRI,
+                BackColor = Color.Transparent,
+                AutoSize  = false,
+                Location  = new Point(20, 10),
+                Size      = new Size(268, 18)
+            };
+
+            _ttWhat = new Label
+            {
+                Font      = new Font("Consolas", 7.5f),
+                ForeColor = Theme.TEXT_SEC,
+                BackColor = Color.Transparent,
+                AutoSize  = false,
+                Location  = new Point(20, 32),
+                Size      = new Size(268, 120)
+            };
+
+            _tooltip = new Panel
+            {
+                BackColor = Color.FromArgb(18, 18, 26),
+                Size      = new Size(300, 0),   // height set dynamically
+                Visible   = false,
+                Padding   = new Padding(12)
+            };
+            _tooltip.Paint += (s, e) =>
+            {
+                using var pen = new Pen(Theme.ACCENT, 1f);
+                e.Graphics.DrawRectangle(pen, 0, 0, _tooltip.Width - 1, _tooltip.Height - 1);
+                // Accent left bar
+                using var bar = new SolidBrush(Theme.ACCENT);
+                e.Graphics.FillRectangle(bar, 1, 1, 3, _tooltip.Height);
+            };
+            _tooltip.Controls.Add(_ttTitle);
+            _tooltip.Controls.Add(_ttWhat);
+
+            // Hide timer — small delay so moving between tiles doesn't flicker
+            _ttHideTimer = new System.Windows.Forms.Timer { Interval = 120 };
+            _ttHideTimer.Tick += (s, e) => { _ttHideTimer.Stop(); _tooltip.Visible = false; };
+
+            Controls.Add(_tooltip);
+            _tooltip.BringToFront();
+        }
+
+        private void ShowTooltip(TweakTile tile)
+        {
+            _ttHideTimer.Stop();
+            if (string.IsNullOrEmpty(tile.Entry.WhatItChanges)) return;
+
+            _ttTitle.Text = tile.Entry.Name;
+
+            // WhatItChanges uses literal \n — split into cmd line + explanation
+            string raw   = tile.Entry.WhatItChanges;
+            int    split = raw.IndexOf("\n");
+            if (split >= 0)
+            {
+                _ttWhat.Font      = new Font("Consolas", 7.5f);
+                string cmdLine    = raw.Substring(0, split).Trim();
+                string explain    = raw.Substring(split + 1).Trim();
+                _ttWhat.Text      = cmdLine + "\n\n" + explain;
+                _ttWhat.ForeColor = Theme.TEXT_SEC;
+            }
+            else
+            {
+                _ttWhat.Text      = raw;
+                _ttWhat.ForeColor = Theme.TEXT_SEC;
+            }
+
+            // Measure required height dynamically
+            using (var g = _ttWhat.CreateGraphics())
+            {
+                var szF          = g.MeasureString(_ttWhat.Text, _ttWhat.Font, _ttWhat.Width);
+                int txtH         = (int)szF.Height + 8;
+                _ttWhat.Height   = Math.Max(txtH, 30);
+                _tooltip.Height  = _ttWhat.Top + _ttWhat.Height + 16;
+            }
+
+            // Position to the right of tile, flip left if needed, clamp vertically
+            Point screenPt   = tile.PointToScreen(Point.Empty);
+            Point clientPt   = PointToClient(screenPt);
+            int   tx         = clientPt.X + tile.Width + 6;
+            int   ty         = clientPt.Y;
+            if (tx + _tooltip.Width > ClientSize.Width - 10)
+                tx = clientPt.X - _tooltip.Width - 6;
+            if (ty + _tooltip.Height > ClientSize.Height - _bottomBar.Height - 10)
+                ty = ClientSize.Height - _bottomBar.Height - _tooltip.Height - 10;
+
+            _tooltip.Location = new Point(tx, ty);
+            _tooltip.Visible  = true;
+            _tooltip.BringToFront();
+        }
+
+        private void HideTooltip() => _ttHideTimer.Start();
+
+        //  RUN -- self explanitory
+
         private async void OnRunClicked(object sender, EventArgs e)
         {
             if (_isRunning) return;
@@ -1470,8 +1602,6 @@ namespace Win11Optimizer
                 }
             }
 
-            foreach (var t in selected) t.SetStatus(TileStatus.Running);
-
             await Task.Run(() =>
             {
                 var ordered = selected
@@ -1495,12 +1625,16 @@ namespace Win11Optimizer
                         lastCat = entry.Category;
                     }
 
+                    // Mark tile as running right before it executes (not all at once up front)
                     Invoke(new Action(() =>
                     {
+                        tile.SetStatus(TileStatus.Running);
                         _doneTweaks++;
                         SetProgress(_doneTweaks, _totalTweaks);
-                        SetStatus($"Running: {entry.Name}", Theme.WARNING);
+                        SetStatus($"[{_doneTweaks}/{_totalTweaks}]  {entry.Category} → {entry.Name}", Theme.WARNING);
                         AppendLog($"  → {entry.Name}…");
+                        // Scroll the tile into view
+                        _tileGrid.ScrollControlIntoView(tile);
                     }));
 
                     if (entry.Category == "Bloatware")
@@ -1520,7 +1654,11 @@ namespace Win11Optimizer
             int pass = results.Count(r => r.Success);
             int fail = results.Count(r => !r.Success);
 
-            foreach (var t in selected) t.SetStatus(TileStatus.Done);
+            foreach (var t in selected)
+            {
+                t.SetStatus(TileStatus.Done);
+                t.SetApplied(true);
+            }
 
             SetProgress(_totalTweaks, _totalTweaks);
             SetStatus($"Complete — {pass} succeeded, {fail} failed.",
@@ -1543,9 +1681,8 @@ namespace Win11Optimizer
             PromptReboot();
         }
 
-        // ─────────────────────────────────────────────────────────────────
-        //  UNDO
-        // ─────────────────────────────────────────────────────────────────
+        //  UNDO -- self explanitory
+
         private async void OnUndoClicked(object sender, EventArgs e)
         {
             var undoCats = _tiles
@@ -1584,9 +1721,8 @@ namespace Win11Optimizer
             UpdateSelCount();
         }
 
-        // ─────────────────────────────────────────────────────────────────
-        //  HELPERS
-        // ─────────────────────────────────────────────────────────────────
+        //  HELPERS -- status updates, progress bar, log appending, reboot prompt
+
         private void SetStatus(string msg, Color col = default)
         {
             if (InvokeRequired) { Invoke(new Action(() => SetStatus(msg, col))); return; }
@@ -1620,17 +1756,15 @@ namespace Win11Optimizer
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
     //  TILE STATUS ENUM
-    // ═══════════════════════════════════════════════════════════════════════
+
     public enum TileStatus { None, Running, Done }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    //  TWEAK TILE
-    // ═══════════════════════════════════════════════════════════════════════
+    //  TWEAK TILE -- represents a single tweak as a clickable tile in the grid, showing its name, description and an icon. It has three states: unchecked (not selected), checked (selected for running), and applied (already run in the past). The tile's appearance changes based on these states, and it raises a CheckedChanged event when toggled.
     public class TweakTile : Panel
     {
         private bool       _checked;
+        private bool       _applied;           // was previously run
         private TileStatus _status      = TileStatus.None;
         private string     _statusText  = "";
         private Color      _statusColor = Theme.TEXT_SEC;
@@ -1693,6 +1827,16 @@ namespace Win11Optimizer
                         new Point(Width - 15, 18),
                         new Point(Width - 9,   9)
                     });
+                }
+
+                // "Already applied" indicator — subtle green dot + text bottom-left
+                if (_applied && _status == TileStatus.None)
+                {
+                    using var dotBr  = new SolidBrush(Theme.SUCCESS);
+                    using var txtFnt = new Font("Segoe UI", 7f);
+                    using var txtBr  = new SolidBrush(Color.FromArgb(80, Theme.SUCCESS.R, Theme.SUCCESS.G, Theme.SUCCESS.B));
+                    g.FillEllipse(dotBr, 10, Height - 16, 6, 6);
+                    g.DrawString("applied", txtFnt, txtBr, new PointF(20, Height - 18));
                 }
 
                 if (!string.IsNullOrEmpty(_statusText))
@@ -1764,6 +1908,12 @@ namespace Win11Optimizer
             MouseLeave += (s, ev) => { if (!_checked) BackColor = Theme.SURFACE; };
         }
 
+        public void SetApplied(bool applied)
+        {
+            _applied = applied;
+            Invalidate();
+        }
+
         public void SetStatus(TileStatus status)
         {
             _status = status;
@@ -1785,9 +1935,8 @@ namespace Win11Optimizer
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    //  SECTION HEADER
-    // ═══════════════════════════════════════════════════════════════════════
+    //  SECTION HEADER -- a non-interactive header panel used to separate different categories of tweaks in the grid. It displays the category name with a colored accent bar on the left and an emoji. The header also draws a horizontal divider line at the bottom and resizes itself to fit the width of the parent container.
+
     public class SectionHeader : Panel
     {
         public SectionHeader(string title, string emoji)
@@ -1843,9 +1992,8 @@ namespace Win11Optimizer
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
     //  FLAT BUTTON
-    // ═══════════════════════════════════════════════════════════════════════
+
     public class FlatButton : Button
     {
         public FlatButton(string text, Color bg)
@@ -1861,9 +2009,8 @@ namespace Win11Optimizer
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
     //  DARK RICH TEXT BOX
-    // ═══════════════════════════════════════════════════════════════════════
+
     public class DarkRichTextBox : RichTextBox
     {
         [DllImport("uxtheme.dll", CharSet = CharSet.Unicode)]
@@ -1875,9 +2022,26 @@ namespace Win11Optimizer
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
+    //  GRAPHICS EXTENSION -- a helper method to draw filled rectangles with rounded corners, used for the progress bar and other UI elements. It takes a brush, rectangle dimensions and a corner radius, and constructs a GraphicsPath to fill the shape with anti-aliasing.
+
+    internal static class GraphicsEx
+    {
+        public static void FillRoundedRect(this System.Drawing.Graphics g,
+            System.Drawing.Brush brush, int x, int y, int w, int h, int r)
+        {
+            int d = r * 2;
+            var path = new System.Drawing.Drawing2D.GraphicsPath();
+            path.AddArc(x,         y,         d, d, 180, 90);
+            path.AddArc(x + w - d, y,         d, d, 270, 90);
+            path.AddArc(x + w - d, y + h - d, d, d,   0, 90);
+            path.AddArc(x,         y + h - d, d, d,  90, 90);
+            path.CloseFigure();
+            g.FillPath(brush, path);
+        }
+    }
+
     //  ENTRY POINT
-    // ═══════════════════════════════════════════════════════════════════════
+
     static class Program
     {
         [STAThread]
