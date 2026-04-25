@@ -1,8 +1,34 @@
 # ⚡ Win11 Optimizer
 
-A clean, open-source Windows 10/11 optimizer built in C# / WinForms. Designed to be dropped onto a fresh Windows install and run once to apply performance, privacy, gaming, network, and security tweaks — with full per-category undo support.
+> A clean, open-source Windows 10/11 optimizer built in C# / WinForms.  
+> Designed to be dropped onto a fresh Windows install and run once to apply performance, privacy, gaming, network, and security tweaks — with full per-category undo support.
+
+**Version:** `1.0.0`  
+**Platform:** Windows 10 / 11 (64-bit)  
+**Runtime:** .NET 8 Desktop Runtime  
+**License:** MIT
 
 ---
+
+## What's New in v1.0.0
+
+### 🚀 Startup Manager
+A full startup program manager integrated directly into Win11 Optimizer as a dedicated sidebar tab.
+
+- Reads startup entries from all three standard Windows locations:
+  - `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` (current user registry)
+  - `HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run` (system-wide registry)
+  - User and common startup folders
+- Enable or disable individual startup entries using the same technique as Windows Task Manager (`StartupApproved\Run` binary key)
+- One-click **Enable All** / **Disable All** controls
+- Per-entry **impact indicator** (High / Medium / Low) based on known heavy hitters like OneDrive, Discord, Steam, Zoom, and Teams
+- Color-coded **source badges** — Registry (User), Registry (System), Startup Folder
+- **Delete** entries permanently with confirmation prompt
+- Startup folder items handled gracefully — disable is not supported by Windows for folder shortcuts, so the UI explains this and directs to Delete instead
+- **Refresh** button to reload the list at any time
+
+### 🎨 Full UI Rework — Corn Studios Design Language
+The entire application visual style has been reworked to match the [Corn Studios website](https://corn-studios.github.io) aesthetic.
 
 ## Features
 
@@ -16,79 +42,10 @@ A clean, open-source Windows 10/11 optimizer built in C# / WinForms. Designed to
 | 🗑 Bloatware Removal | Removes pre-installed Microsoft and third-party bloat (Bing apps, Xbox overlays, TikTok, LinkedIn, etc.) from both user and provisioned packages |
 | 🔐 Security Hardening | Disables AutoRun/AutoPlay on all drive types, disables Remote Desktop (RDP), disables SMBv1, disables NetBIOS over TCP/IP, enforces Windows Defender real-time protection |
 | ⚠ Advanced Tweaks | CPU scheduler tuning (Win32PrioritySeparation), disable dynamic tick, disable CPU throttling for background processes, ensure SSD TRIM is enabled, aggressive animation disabling |
+| 🚀 Startup Manager | View, enable, disable, and delete startup entries from registry and startup folders |
 
 ### Per-Category Undo
 Every registry change is backed up before being applied. After running a category, an **↩ Undo Selected** button appears in the bottom bar — click it to fully restore that category to its pre-tweak state. Backups persist across app restarts via `tweaks_backup.json`.
-
----
-
-## Tweak Details
-
-### ⚡ Performance
-- High Performance power plan via `powercfg`
-- Disable Power Throttling (`PowerThrottlingOff`)
-- Disable SysMain (Superfetch) and Windows Search Indexer
-- Remove Explorer startup delay
-- Visual effects set to Best Performance
-- Disable NTFS last-access timestamps and 8.3 filenames
-- Disable hibernation (frees several GB of disk space)
-- Disable memory compression
-- **Set timer resolution to 0.5ms** — calls `timeBeginPeriod(1)` via P/Invoke and sets `GlobalTimerResolutionRequests=1` in the kernel registry key for persistent sub-millisecond scheduler ticks
-
-### 🔒 Privacy & Telemetry
-- Set `AllowTelemetry=0` at machine and policy scope
-- Disable DiagTrack, dmwappushservice, WerSvc, RetailDemo services
-- Disable all CEIP, AppraiserV2, DiskDiagnostic, and Proxy scheduled tasks
-- Disable Advertising ID, Bing in Start, Cortana consent, Activity Feed, location tracking, app camera access, SmartScreen, feedback requests, app launch tracking
-- **Disable Windows Recall** — sets `DisableAIDataAnalysis=1` in both machine and user `WindowsAI` policy keys (no-op on non-Copilot+ hardware)
-- **Disable Chat/Teams taskbar icon** — sets `TaskbarMn=0` in Explorer Advanced
-- **Block telemetry hosts** — appends 35 Microsoft telemetry/data-collection domains to `C:\Windows\System32\drivers\etc\hosts`, fully reversible via undo
-
-### 🖥 Responsiveness
-- Menu show delay → 0ms
-- WaitToKillAppTimeout / HungAppTimeout → 2000ms / 1000ms
-- WaitToKillServiceTimeout → 2000ms
-- AutoEndTasks on shutdown
-- Platform tick (high-res timer) via `bcdedit`
-- Disable Windows Tips and suggested content in Start
-
-### 🎮 Gaming
-- Enable Hardware-Accelerated GPU Scheduling (HAGS)
-- Enable Game Mode and Auto Game Mode
-- Disable mouse acceleration (pointer precision)
-- CPU foreground priority boost (Win32PrioritySeparation=38)
-- Disable Game DVR capture and FSO globally
-- Disable fullscreen optimizations
-- **GPU Power: Prefer Maximum Performance** — writes to the D3D GPU class driver registry key, prevents GPU idle downclocking
-- **Disable NVIDIA Telemetry** — stops `NvTelemetryContainer`, `NvDisplayContainerLS`, and three NVIDIA scheduled tasks (no-op if NVIDIA drivers aren't installed)
-
-### 🌐 Network
-- Disable Nagle's Algorithm (`TcpAckFrequency`, `TCPNoDelay`) on all adapters
-- Enable Receive-Side Scaling (RSS)
-- TCP auto-tuning set to Normal
-- Remove network throttling index and multimedia responsiveness cap
-- **DNS over HTTPS (Cloudflare 1.1.1.1)** — enables `EnableAutoDoh=2` in the DNS Client and registers `1.1.1.1` / `1.0.0.1` with the Cloudflare DoH template
-
-### 🗑 Bloatware Removal
-Removes the following from both user packages and provisioned (all-user) packages:
-Bing News/Weather/Search, Zune Video/Music, Skype, Solitaire, Feedback Hub, Maps, Phone Link, Clipchamp, Mixed Reality, Power Automate, LinkedIn, Disney+, Spotify, TikTok, Instagram, Facebook, Office Hub, OneNote, People, To Do, Widgets, Xbox apps and overlays, 3D Viewer, Print 3D, Wallet, and advertising apps.
-
-> ⚠ Bloatware removal **cannot be undone** — removed apps must be reinstalled manually from the Microsoft Store if needed.
-
-### 🔐 Security Hardening
-- **Disable AutoRun/AutoPlay** — sets `NoDriveTypeAutoRun=0xFF` at both user and machine scope, blocks `autorun.inf` execution
-- **Disable Remote Desktop (RDP)** — sets `fDenyTSConnections=1` and disables the RDP firewall rule group
-- **Disable SMBv1** — runs `Set-SmbServerConfiguration -EnableSMB1Protocol $false` and removes the `SMB1Protocol` Windows feature (the WannaCry/EternalBlue vector)
-- **Disable NetBIOS over TCP/IP** — sets `TcpipNetbios=2` on all network adapters via WMI, stopping NetBIOS name broadcasts and NBNS poisoning attacks
-- **Ensure Defender Real-Time Protection** — sets policy keys to prevent Defender being disabled and runs `Set-MpPreference -DisableRealtimeMonitoring $false`
-
-### ⚠ Advanced Tweaks
-Selected individually before applying via a confirmation dialog:
-- **Processor Scheduling → Programs** (Win32PrioritySeparation=38)
-- **Disable Dynamic Tick** — `bcdedit /set disabledynamictick yes`, forces constant high-res IRQ8 timer
-- **Disable CPU Throttling** — sets THROTTLE_POLICY ValueMax=0, prevents Windows pulling background CPU clocks
-- **Ensure SSD TRIM** — `fsutil behavior set disabledeletenotify 0`
-- **Aggressive Animation Disabling** — kills UserPreferencesMask bits, TaskbarAnimations, MinAnimate, ListviewShadow
 
 ---
 
@@ -102,7 +59,7 @@ Selected individually before applying via a confirmation dialog:
 
 ## Releases
 
-1. Go to [Releases](https://github.com/ConnorCorn07/win11op/releases) and download the latest `.exe`
+1. Go to [Releases](https://github.com/Corn-Studios/win11op/releases) and download the latest `.exe`
 2. Right-click → **Run as Administrator**
 
 ## Build from Source
@@ -110,7 +67,7 @@ Selected individually before applying via a confirmation dialog:
 1. Install the [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
 2. Clone the repo:
    ```
-   git clone https://github.com/ConnorCorn07/win11op.git
+   git clone https://github.com/Corn-Studios/win11op.git
    ```
 3. Build:
    ```
@@ -132,6 +89,7 @@ Selected individually before applying via a confirmation dialog:
 - Windows Recall tweaks are a no-op on non-Copilot+ PCs — safe to apply on any hardware
 - NVIDIA telemetry tweaks are a no-op if NVIDIA drivers are not installed
 - The hosts file block list is cleanly removed by the Privacy undo function
+- Startup folder shortcuts cannot be disabled (Windows limitation) — only deleted
 
 ---
 
@@ -139,4 +97,9 @@ Selected individually before applying via a confirmation dialog:
 
 MIT — see [LICENSE](LICENSE)
 
-> ⚠ **AI Disclosure:** This project contains code written with the assistance of generative AI (Claude by Anthropic).
+---
+
+## AI Disclosure
+
+> ⚠ This project contains code written with the assistance of **Claude by Anthropic** (claude.ai).  
+> Specifically, the **Startup Manager** feature (`StartupManager.cs`, `StartupTab.cs`) and the **v1.0.0 UI rework** were developed with Claude Sonnet. All code has been reviewed and tested by the project maintainer.
