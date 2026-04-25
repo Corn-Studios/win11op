@@ -47,8 +47,8 @@ namespace Win11Optimizer
 
             var title = new Label
             {
-                Text      = "🚀  Startup Manager",
-                Font      = new Font("Segoe UI Semibold", 11f),
+                Text      = "// STARTUP MANAGER",
+                Font      = new Font("Segoe UI Black", 11f),
                 ForeColor = Theme.TEXT_PRI,
                 AutoSize  = true,
                 Location  = new Point(16, 15)
@@ -280,24 +280,23 @@ namespace Win11Optimizer
             Height    = 36;
             BackColor = Color.Transparent;
 
-            var bar = new Panel
-            {
-                BackColor = Theme.ACCENT,
-                Size      = new Size(3, 20),
-                Location  = new Point(0, 8)
-            };
-
             var lbl = new Label
             {
-                Text      = title,
-                Font      = new Font("Segoe UI Semibold", 9.5f),
-                ForeColor = Theme.TEXT_SEC,
+                Text      = $"// {title.ToUpper()}",
+                Font      = new Font("Courier New", 7.5f, FontStyle.Bold),
+                ForeColor = Theme.ACCENT,
                 AutoSize  = true,
-                Location  = new Point(10, 9),
+                Location  = new Point(0, 10),
                 BackColor = Color.Transparent
             };
 
-            Controls.AddRange(new Control[] { bar, lbl });
+            Paint += (s, e) =>
+            {
+                using var pen = new Pen(Theme.BORDER, 1);
+                e.Graphics.DrawLine(pen, 0, Height - 1, Width, Height - 1);
+            };
+
+            Controls.AddRange(new Control[] { lbl });
         }
     }
 
@@ -354,7 +353,7 @@ namespace Win11Optimizer
             _nameLbl = new Label
             {
                 Text         = entry.Name,
-                Font         = new Font("Segoe UI Semibold", 9.5f),
+                Font         = new Font("Segoe UI Black", 9f),
                 ForeColor    = entry.IsEnabled ? Theme.TEXT_PRI : Theme.TEXT_SEC,
                 AutoSize     = false,
                 Height       = 20,

@@ -11,20 +11,21 @@ using System.Windows.Forms;
 
 namespace Win11Optimizer
 {
-    //  THEME -- colors used throughout the app for a consistent look
+    //  THEME -- Corn Studios website palette: pure black + lime green
     public static class Theme
     {
-        public static readonly Color BG         = Color.FromArgb(13, 13, 18);
-        public static readonly Color SURFACE    = Color.FromArgb(22, 22, 30);
-        public static readonly Color SURFACE2   = Color.FromArgb(30, 30, 40);
-        public static readonly Color ACCENT     = Color.FromArgb(99, 102, 241);
-        public static readonly Color ACCENT_HOV = Color.FromArgb(129, 132, 255);
-        public static readonly Color SUCCESS    = Color.FromArgb(34, 197, 94);
-        public static readonly Color WARNING    = Color.FromArgb(251, 191, 36);
-        public static readonly Color DANGER     = Color.FromArgb(239, 68, 68);
-        public static readonly Color TEXT_PRI   = Color.FromArgb(240, 240, 255);
-        public static readonly Color TEXT_SEC   = Color.FromArgb(140, 140, 170);
-        public static readonly Color BORDER     = Color.FromArgb(40, 40, 58);
+        public static readonly Color BG          = Color.FromArgb( 10,  10,  10);  // near-pure black
+        public static readonly Color SURFACE     = Color.FromArgb( 18,  18,  18);  // card background
+        public static readonly Color SURFACE2    = Color.FromArgb( 26,  26,  26);  // elevated surface
+        public static readonly Color ACCENT      = Color.FromArgb(204, 255,   0);  // lime #CCFF00
+        public static readonly Color ACCENT_HOV  = Color.FromArgb(220, 255,  60);  // lighter lime on hover
+        public static readonly Color SUCCESS     = Color.FromArgb( 34, 197,  94);  // green (distinct from lime accent)
+        public static readonly Color WARNING     = Color.FromArgb(251, 191,  36);  // amber — kept
+        public static readonly Color DANGER      = Color.FromArgb(239,  68,  68);  // red — kept
+        public static readonly Color TEXT_PRI    = Color.FromArgb(240, 240, 240);  // clean white
+        public static readonly Color TEXT_SEC    = Color.FromArgb(100, 100, 100);  // cool mid-grey
+        public static readonly Color BORDER      = Color.FromArgb( 35,  35,  35);  // very dark border
+        public static readonly Color ACCENT_TEXT = Color.FromArgb( 10,  10,  10);  // black on lime buttons
     }
 
     //  TWEAK CATALOG -- defines all available tweaks, their categories, descriptions and how to apply them
@@ -581,21 +582,14 @@ namespace Win11Optimizer
 
             var titleLbl = new Label
             {
-                Text      = "⚡  Win11 Optimizer",
-                Font      = new Font("Segoe UI Semibold", 13f),
+                Text      = "WIN11 OPTIMIZER  ⚡",
+                Font      = new Font("Arial Black", 11f),
                 ForeColor = Theme.TEXT_PRI,
                 AutoSize  = true,
                 Location  = new Point(18, 17)
             };
 
-            _winVerBadge = new Label
-            {
-                AutoSize  = true,
-                Font      = new Font("Segoe UI", 8.5f),
-                Location  = new Point(270, 21),
-                ForeColor = WinVersion.IsWin11 ? Theme.SUCCESS : Theme.WARNING,
-                Text      = (WinVersion.IsWin11 ? "✔" : "⚠") + $"  {WinVersion.DisplayName}"
-            };
+            _winVerBadge = new Label { Visible = false };
 
             _adminBadge = new Label
             {
@@ -607,21 +601,20 @@ namespace Win11Optimizer
                 Visible   = false
             };
 
-            var ghLink = new LinkLabel
+            var ghLink = new FlatButton("⭐  GITHUB ↗", Theme.ACCENT)
             {
-                Text             = "⭐  github.com/ConnorCorn07/win11op",
-                Font             = new Font("Segoe UI", 8.5f),
-                AutoSize         = true,
-                BackColor        = Theme.SURFACE,
-                LinkColor        = Theme.TEXT_SEC,
-                ActiveLinkColor  = Theme.ACCENT,
-                VisitedLinkColor = Theme.TEXT_SEC,
-                LinkBehavior     = LinkBehavior.HoverUnderline
+                AutoSize  = false,
+                Size      = new Size(110, 30),
+                Font      = new Font("Courier New", 8f, FontStyle.Bold),
+                ForeColor = Theme.ACCENT_TEXT,
+                Cursor    = Cursors.Hand
             };
+            ghLink.FlatAppearance.BorderSize         = 0;
+            ghLink.FlatAppearance.MouseOverBackColor = Theme.ACCENT_HOV;
             ghLink.Click += (s, e) => Process.Start(new ProcessStartInfo
                 { FileName = "https://github.com/ConnorCorn07/win11op", UseShellExecute = true });
             _topBar.SizeChanged += (s, e) =>
-                ghLink.Location = new Point(_topBar.Width - ghLink.PreferredWidth - 18, 20);
+                ghLink.Location = new Point(_topBar.Width - ghLink.Width - 16, (_topBar.Height - ghLink.Height) / 2);
 
             _topBar.Controls.AddRange(new Control[]
                 { titleLbl, _winVerBadge, _adminBadge, ghLink });
@@ -640,8 +633,8 @@ namespace Win11Optimizer
 
             var hdr = new Label
             {
-                Text      = "CATEGORIES",
-                Font      = new Font("Segoe UI", 7.5f, FontStyle.Bold),
+                Text      = "// CATEGORIES",
+                Font      = new Font("Courier New", 7.5f, FontStyle.Bold),
                 ForeColor = Theme.TEXT_SEC,
                 AutoSize  = true,
                 Location  = new Point(14, 14)
@@ -691,15 +684,15 @@ namespace Win11Optimizer
                 TextAlign = ContentAlignment.MiddleLeft,
                 FlatStyle = FlatStyle.Flat,
                 BackColor = active ? Theme.ACCENT : Color.Transparent,
-                ForeColor = active ? Color.White : Theme.TEXT_SEC,
-                Font      = new Font("Segoe UI", 9.5f),
+                ForeColor = active ? Color.FromArgb(10, 10, 10) : Theme.TEXT_SEC,
+                Font      = new Font("Segoe UI", 9f),
                 Cursor    = Cursors.Hand,
                 Tag       = cat
             };
             btn.FlatAppearance.BorderSize           = 0;
             btn.FlatAppearance.MouseOverBackColor   = active
                 ? Theme.ACCENT_HOV
-                : Color.FromArgb(35, 35, 50);
+                : Color.FromArgb(28, 28, 28);
 
             // Badge paint — draws a small pill with selection count on the right
             btn.Paint += (s, e) =>
@@ -712,9 +705,11 @@ namespace Win11Optimizer
                 string badge = selCount.ToString();
                 bool   isActive = cat == _activeCategory;
                 Color  pillBg   = isActive
-                    ? Color.FromArgb(60, 255, 255, 255)
+                    ? Color.FromArgb(204, 255, 0)        // solid lime on active
                     : Color.FromArgb(50, Theme.ACCENT.R, Theme.ACCENT.G, Theme.ACCENT.B);
-                Color  pillFg   = isActive ? Color.White : Theme.ACCENT;
+                Color  pillFg   = isActive
+                    ? Color.FromArgb(10, 10, 10)         // black text on lime
+                    : Theme.ACCENT;
 
                 using var badgeFont = new Font("Segoe UI", 7.5f, FontStyle.Bold);
                 var g = e.Graphics;
@@ -739,7 +734,7 @@ namespace Win11Optimizer
                 _activeCategory = cat;
                 ClearSearch();
                 RefreshSidebar();
-                if (cat == "History") ShowHistory();
+                if      (cat == "History") ShowHistory();
                 else if (cat == "Startup") ShowStartup();
                 else                       PopulateGrid(cat);
             };
@@ -754,10 +749,10 @@ namespace Win11Optimizer
                 {
                     bool active = cat == _activeCategory;
                     btn.BackColor = active ? Theme.ACCENT : Color.Transparent;
-                    btn.ForeColor = active ? Color.White : Theme.TEXT_SEC;
+                    btn.ForeColor = active ? Color.FromArgb(10, 10, 10) : Theme.TEXT_SEC;
                     btn.FlatAppearance.MouseOverBackColor = active
                         ? Theme.ACCENT_HOV
-                        : Color.FromArgb(35, 35, 50);
+                        : Color.FromArgb(28, 28, 28);
                 }
             }
         }
@@ -902,62 +897,65 @@ namespace Win11Optimizer
                 BackColor = Color.Transparent
             };
 
-            // ── Preset buttons — placed below the label ────────────────────
-            var presetRecommended = new FlatButton("⭐ Recommended", Color.FromArgb(35, 35, 60))
+            // ── Preset buttons — lime/dark scheme, Nuclear stays red ──────
+            // Shared style helper
+            static void StylePreset(FlatButton b) {
+                b.FlatAppearance.BorderSize  = 1;
+                b.FlatAppearance.BorderColor = Color.FromArgb(204, 255, 0);   // lime border
+                b.FlatAppearance.MouseOverBackColor = Color.FromArgb(30, 204, 255, 0); // faint lime glow
+            }
+
+            var presetRecommended = new FlatButton("⭐ Recommended", Theme.SURFACE2)
             {
                 Size      = new Size(138, 28),
                 Location  = new Point(352, 20),
                 Font      = new Font("Segoe UI", 8.5f),
                 ForeColor = Theme.ACCENT
             };
-            presetRecommended.FlatAppearance.BorderSize  = 1;
-            presetRecommended.FlatAppearance.BorderColor = Color.FromArgb(60, 62, 100);
+            StylePreset(presetRecommended);
             presetRecommended.Click += (s, e) => ApplyPreset("Recommended");
 
-            var presetGaming = new FlatButton("🎮 Gaming PC", Color.FromArgb(30, 40, 30))
+            var presetGaming = new FlatButton("🎮 Gaming PC", Theme.SURFACE2)
             {
                 Size      = new Size(110, 28),
                 Location  = new Point(498, 20),
                 Font      = new Font("Segoe UI", 8.5f),
-                ForeColor = Theme.SUCCESS
+                ForeColor = Theme.ACCENT
             };
-            presetGaming.FlatAppearance.BorderSize  = 1;
-            presetGaming.FlatAppearance.BorderColor = Color.FromArgb(40, 80, 40);
+            StylePreset(presetGaming);
             presetGaming.Click += (s, e) => ApplyPreset("Gaming");
 
-            var presetPrivacy = new FlatButton("🔒 Privacy", Color.FromArgb(35, 25, 50))
+            var presetPrivacy = new FlatButton("🔒 Privacy", Theme.SURFACE2)
             {
                 Size      = new Size(90, 28),
                 Location  = new Point(616, 20),
                 Font      = new Font("Segoe UI", 8.5f),
-                ForeColor = Color.FromArgb(168, 85, 247)
+                ForeColor = Theme.ACCENT
             };
-            presetPrivacy.FlatAppearance.BorderSize  = 1;
-            presetPrivacy.FlatAppearance.BorderColor = Color.FromArgb(80, 40, 100);
+            StylePreset(presetPrivacy);
             presetPrivacy.Click += (s, e) => ApplyPreset("Privacy");
 
-            var presetSecurity = new FlatButton("🛡 Security", Color.FromArgb(20, 40, 35))
+            var presetSecurity = new FlatButton("🛡 Security", Theme.SURFACE2)
             {
                 Size      = new Size(92, 28),
                 Location  = new Point(714, 20),
                 Font      = new Font("Segoe UI", 8.5f),
-                ForeColor = Color.FromArgb(16, 185, 129)
+                ForeColor = Theme.ACCENT
             };
-            presetSecurity.FlatAppearance.BorderSize  = 1;
-            presetSecurity.FlatAppearance.BorderColor = Color.FromArgb(30, 80, 60);
+            StylePreset(presetSecurity);
             presetSecurity.Click += (s, e) => ApplyPreset("Security");
 
-            var presetMinimal = new FlatButton("🪶 Minimal", Color.FromArgb(20, 25, 35))
+            var presetMinimal = new FlatButton("🪶 Minimal", Theme.SURFACE2)
             {
                 Size      = new Size(84, 28),
                 Location  = new Point(814, 20),
                 Font      = new Font("Segoe UI", 8.5f),
-                ForeColor = Theme.TEXT_SEC
+                ForeColor = Theme.ACCENT
             };
-            presetMinimal.FlatAppearance.BorderSize  = 1;
-            presetMinimal.FlatAppearance.BorderColor = Theme.BORDER;
+            StylePreset(presetMinimal);
             presetMinimal.Click += (s, e) => ApplyPreset("Minimal");
 
+            // Nuclear stays red — intentionally different to signal danger
             var presetNuclear = new FlatButton("☢ Nuclear", Color.FromArgb(45, 20, 20))
             {
                 Size      = new Size(88, 28),
@@ -967,6 +965,7 @@ namespace Win11Optimizer
             };
             presetNuclear.FlatAppearance.BorderSize  = 1;
             presetNuclear.FlatAppearance.BorderColor = Color.FromArgb(100, 40, 40);
+            presetNuclear.FlatAppearance.MouseOverBackColor = Color.FromArgb(60, 30, 30);
             presetNuclear.Click += (s, e) => ApplyPreset("Nuclear");
 
             _searchBar.Controls.AddRange(new Control[]
@@ -1136,6 +1135,7 @@ namespace Win11Optimizer
                 .GroupBy(t => t.Category)
                 .OrderBy(g => Array.IndexOf(CategoryOrder, g.Key));
 
+            SectionHeader.ResetIndex();
             foreach (var group in groups)
             {
                 string emoji = CatEmoji.TryGetValue(group.Key, out var em) ? em : "📦";
@@ -1229,7 +1229,7 @@ namespace Win11Optimizer
             };
             var titleLbl = new Label
             {
-                Text      = "RUN HISTORY",
+                Text      = "// RUN HISTORY",
                 Font      = new Font("Segoe UI", 9f, FontStyle.Bold),
                 ForeColor = Theme.TEXT_SEC,
                 AutoSize  = true,
@@ -1388,11 +1388,11 @@ namespace Win11Optimizer
                 { Size = new Size(130, 36) };
             _clearBtn.Click += (s, e) => SetAllInView(false);
 
-            _runBtn = new FlatButton("⚡  Run Selected", Theme.ACCENT)
+            _runBtn = new FlatButton("⚡  RUN SELECTED", Theme.ACCENT)
             {
-                Size      = new Size(160, 36),
-                Font      = new Font("Segoe UI Semibold", 10f),
-                ForeColor = Color.White
+                Size      = new Size(165, 36),
+                Font      = new Font("Arial Black", 8.5f),
+                ForeColor = Theme.ACCENT_TEXT
             };
             _runBtn.Click += OnRunClicked;
 
@@ -1443,8 +1443,8 @@ namespace Win11Optimizer
             var hdr = new Panel { Dock = DockStyle.Top, Height = 26, BackColor = Theme.SURFACE };
             var hdrLbl = new Label
             {
-                Text      = "OUTPUT LOG",
-                Font      = new Font("Segoe UI", 7.5f, FontStyle.Bold),
+                Text      = "// OUTPUT LOG",
+                Font      = new Font("Courier New", 7.5f, FontStyle.Bold),
                 ForeColor = Theme.TEXT_SEC,
                 AutoSize  = true,
                 Location  = new Point(10, 6),
@@ -1796,7 +1796,7 @@ namespace Win11Optimizer
             set
             {
                 _checked  = value;
-                BackColor = value ? Theme.SURFACE2 : Theme.SURFACE;
+                BackColor = value ? Color.FromArgb(22, 22, 18) : Theme.SURFACE;  // very subtle warm tint when checked
                 Invalidate();
                 CheckedChanged?.Invoke(this, EventArgs.Empty);
             }
@@ -1804,14 +1804,16 @@ namespace Win11Optimizer
 
         private static readonly Dictionary<string, Color> CatAccent = new()
         {
-            ["Performance"]    = Color.FromArgb( 99, 102, 241),
-            ["Privacy"]        = Color.FromArgb(168,  85, 247),
-            ["Responsiveness"] = Color.FromArgb(  6, 182, 212),
-            ["Gaming"]         = Color.FromArgb( 34, 197,  94),
-            ["Network"]        = Color.FromArgb(251, 191,  36),
-            ["Bloatware"]      = Color.FromArgb(239,  68,  68),
-            ["Advanced"]       = Color.FromArgb(249, 115,  22),
-            ["Security"]       = Color.FromArgb( 16, 185, 129),
+            // Each category gets a distinct color — website accent is lime,
+            // but tiles need contrast so we use a reduced palette.
+            ["Performance"]    = Color.FromArgb(204, 255,   0),  // lime (primary accent)
+            ["Privacy"]        = Color.FromArgb(139, 92,  246),  // violet
+            ["Responsiveness"] = Color.FromArgb(  6, 182, 212),  // cyan
+            ["Gaming"]         = Color.FromArgb( 34, 197,  94),  // green
+            ["Network"]        = Color.FromArgb(251, 191,  36),  // amber
+            ["Bloatware"]      = Color.FromArgb(239,  68,  68),  // red
+            ["Advanced"]       = Color.FromArgb(249, 115,  22),  // orange
+            ["Security"]       = Color.FromArgb( 20, 184, 166),  // teal
         };
 
         public TweakTile(TweakEntry entry)
@@ -1829,21 +1831,22 @@ namespace Win11Optimizer
                 var g = e.Graphics;
                 g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
 
-                using var borderPen = new Pen(_checked ? accent : Theme.BORDER, 1.5f);
+                using var borderPen = new Pen(_checked ? Color.FromArgb(100, accent.R, accent.G, accent.B) : Theme.BORDER, 1f);
                 g.DrawRectangle(borderPen, 0, 0, Width - 1, Height - 1);
 
-                using var accentBr = new SolidBrush(accent);
-                g.FillRectangle(accentBr, 0, 0, 3, Height);
+                using var accentBr = new SolidBrush(_checked ? accent : Color.FromArgb(60, accent.R, accent.G, accent.B));
+                g.FillRectangle(accentBr, 0, 0, 2, Height);
 
                 if (_checked)
                 {
-                    g.FillRectangle(accentBr, Width - 22, 6, 16, 16);
-                    using var wp = new Pen(Color.White, 2f);
+                    // Subtle filled circle indicator — lime dot, not a full box
+                    g.FillEllipse(accentBr, Width - 20, 8, 12, 12);
+                    using var wp = new Pen(Color.FromArgb(10, 10, 10), 1.5f);
                     g.DrawLines(wp, new[]
                     {
-                        new Point(Width - 19, 14),
-                        new Point(Width - 15, 18),
-                        new Point(Width - 9,   9)
+                        new Point(Width - 18, 14),
+                        new Point(Width - 15, 17),
+                        new Point(Width - 11, 11)
                     });
                 }
 
@@ -1879,7 +1882,7 @@ namespace Win11Optimizer
             var nameLbl = new Label
             {
                 Text         = entry.Name,
-                Font         = new Font("Segoe UI Semibold", 9f),
+                Font         = new Font("Arial Black", 8f),
                 ForeColor    = Theme.TEXT_PRI,
                 AutoSize     = false,
                 Size         = new Size(170, 40),
@@ -1904,8 +1907,8 @@ namespace Win11Optimizer
             Color badgeFg = Color.FromArgb(180, accent.R, accent.G, accent.B);
             var catBadge = new Label
             {
-                Text      = entry.IsAdvanced ? "⚠ advanced" : entry.Category.ToLower(),
-                Font      = new Font("Segoe UI", 7f),
+                Text      = entry.IsAdvanced ? "⚠ ADV" : entry.Category.ToUpper(),
+                Font      = new Font("Courier New", 6.5f, FontStyle.Bold),
                 ForeColor = badgeFg,
                 BackColor = badgeBg,
                 AutoSize  = true,
@@ -1922,7 +1925,7 @@ namespace Win11Optimizer
             descLbl.Click  += Toggle;
             catBadge.Click += Toggle;
 
-            MouseEnter += (s, ev) => { if (!_checked) BackColor = Color.FromArgb(26, 26, 38); };
+            MouseEnter += (s, ev) => { if (!_checked) BackColor = Color.FromArgb(28, 28, 28); };
             MouseLeave += (s, ev) => { if (!_checked) BackColor = Theme.SURFACE; };
         }
 
@@ -1957,37 +1960,46 @@ namespace Win11Optimizer
 
     public class SectionHeader : Panel
     {
+        private static int _sectionIndex = 0;
+        public static void ResetIndex() => _sectionIndex = 0;
+
         public SectionHeader(string title, string emoji)
         {
-            Height    = 44;
-            Margin    = new Padding(5, 16, 5, 4);
+            _sectionIndex++;
+            string index = _sectionIndex.ToString("D2");
+
+            Height    = 52;
+            Margin    = new Padding(5, 20, 5, 4);
             BackColor = Color.Transparent;
 
-            var bar = new Panel
+            // "01 — CATEGORY" monospace label, website style
+            var indexLbl = new Label
             {
-                BackColor = Theme.ACCENT,
-                Size      = new Size(3, 26),
-                Location  = new Point(4, 9)
+                Text      = $"{index} — {title.ToUpper()}",
+                Font      = new Font("Courier New", 7.5f, FontStyle.Bold),
+                ForeColor = Theme.ACCENT,
+                AutoSize  = true,
+                Location  = new Point(6, 8),
+                BackColor = Color.Transparent
             };
 
-            var lbl = new Label
+            var nameLbl = new Label
             {
                 Text      = $"{emoji}  {title}",
-                Font      = new Font("Segoe UI Semibold", 11f),
+                Font      = new Font("Arial Black", 10f),
                 ForeColor = Theme.TEXT_PRI,
                 AutoSize  = true,
-                Location  = new Point(14, 10),
+                Location  = new Point(4, 24),
                 BackColor = Color.Transparent
             };
 
             Paint += (s, e) =>
             {
-                int lineY = Height - 6;
-                using var pen = new Pen(Color.FromArgb(45, 45, 65), 1);
-                e.Graphics.DrawLine(pen, lbl.Right + 10, lineY, Width - 20, lineY);
+                using var pen = new Pen(Theme.BORDER, 1);
+                e.Graphics.DrawLine(pen, 0, Height - 1, Width, Height - 1);
             };
 
-            Controls.AddRange(new Control[] { bar, lbl });
+            Controls.AddRange(new Control[] { indexLbl, nameLbl });
 
             ParentChanged += (s, e) => FitToParent();
             ParentChanged += (s, e) =>
@@ -2018,12 +2030,22 @@ namespace Win11Optimizer
         {
             Text      = text;
             BackColor = bg;
-            ForeColor = Theme.TEXT_PRI;
+            // Black text on lime, white text on dark surfaces
+            bool isAccent = bg.R > 150 && bg.G > 200 && bg.B < 50;
+            ForeColor = isAccent ? Theme.ACCENT_TEXT : Theme.TEXT_PRI;
             FlatStyle = FlatStyle.Flat;
             Cursor    = Cursors.Hand;
-            FlatAppearance.BorderSize           = 0;
-            FlatAppearance.MouseOverBackColor   = ControlPaint.Light(bg, 0.08f);
-            FlatAppearance.MouseDownBackColor   = ControlPaint.Dark(bg, 0.08f);
+            Font      = new Font("Segoe UI", 8.5f);
+            FlatAppearance.BorderSize  = isAccent ? 0 : 1;
+            FlatAppearance.BorderColor = Theme.BORDER;
+            FlatAppearance.MouseOverBackColor = isAccent
+                ? Theme.ACCENT_HOV
+                : Color.FromArgb(Math.Min(bg.R + 15, 255),
+                                 Math.Min(bg.G + 15, 255),
+                                 Math.Min(bg.B + 15, 255));
+            FlatAppearance.MouseDownBackColor = isAccent
+                ? Color.FromArgb(180, 230, 0)
+                : bg;
         }
     }
 
