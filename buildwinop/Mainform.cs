@@ -458,7 +458,7 @@ namespace Win11Optimizer
         private static readonly string[] SidebarCategories =
         {
             "All", "Performance", "Privacy", "Responsiveness",
-            "Gaming", "Network", "Bloatware", "Security", "Advanced", "History"
+            "Gaming", "Network", "Bloatware", "Security", "Advanced", "Startup", "History"
         };
 
         private static readonly Dictionary<string, string> CatEmoji = new()
@@ -472,6 +472,7 @@ namespace Win11Optimizer
             ["Bloatware"]      = "🗑",
             ["Advanced"]       = "⚠",
             ["Security"]       = "🔒",
+            ["Startup"]        = "🚀",
             ["History"]        = "📋",
         };
 
@@ -492,6 +493,8 @@ namespace Win11Optimizer
 
         // ── History ────────────────────────────────────────────────────────
         private Panel _histPanel;
+
+        private StartupTab _startupTab;
 
         // ── Log ────────────────────────────────────────────────────────────
         private RichTextBox _logBox;
@@ -648,7 +651,7 @@ namespace Win11Optimizer
             int y = 38;
             foreach (var cat in SidebarCategories)
             {
-                if (cat == "History")
+                if (cat == "Startup" || cat == "History")
                 {
                     var div = new Panel
                     {
@@ -737,7 +740,8 @@ namespace Win11Optimizer
                 ClearSearch();
                 RefreshSidebar();
                 if (cat == "History") ShowHistory();
-                else                  PopulateGrid(cat);
+                else if (cat == "Startup") ShowStartup();
+                else                       PopulateGrid(cat);
             };
             return btn;
         }
@@ -787,7 +791,10 @@ namespace Win11Optimizer
                 Visible    = false
             };
 
+            _startupTab = new StartupTab();
+
             _mainArea.Controls.Add(_histPanel);
+            _mainArea.Controls.Add(_startupTab);
             _mainArea.Controls.Add(_tileGrid);
             _mainArea.Controls.Add(_searchBar); // add last so it docks on top
         }
@@ -1034,7 +1041,7 @@ namespace Win11Optimizer
         private void ApplyPreset(string preset)
         {
             // If we're on History, switch to All first
-            if (_activeCategory == "History")
+            if (_activeCategory == "History" || _activeCategory == "Startup")
             {
                 _activeCategory = "All";
                 RefreshSidebar();
@@ -1112,9 +1119,10 @@ namespace Win11Optimizer
 
         private void PopulateGrid(string filter)
         {
-            _histPanel.Visible = false;
-            _tileGrid.Visible  = true;
-            _searchBar.Visible = true;
+            _histPanel.Visible  = false;
+            _startupTab.Visible = false;
+            _tileGrid.Visible   = true;
+            _searchBar.Visible  = true;
 
             _tileGrid.SuspendLayout();
             _tileGrid.Controls.Clear();
@@ -1191,10 +1199,20 @@ namespace Win11Optimizer
 
         private void ShowHistory()
         {
-            _tileGrid.Visible  = false;
-            _searchBar.Visible = false;
-            _histPanel.Visible = true;
+            _tileGrid.Visible   = false;
+            _searchBar.Visible  = false;
+            _startupTab.Visible = false;
+            _histPanel.Visible  = true;
             BuildHistoryContent();
+        }
+
+        private void ShowStartup()
+        {
+            _tileGrid.Visible   = false;
+            _searchBar.Visible  = false;
+            _histPanel.Visible  = false;
+            _startupTab.Visible = true;
+            _startupTab.Activate();
         }
 
         private void BuildHistoryContent()
