@@ -6,7 +6,6 @@ using System.Windows.Forms;
 
 namespace Win11Optimizer
 {
-    // ── StartupTab ────────────────────────────────────────────────────────
     public class StartupTab : Panel
     {
         private Panel           _toolbar;
@@ -35,7 +34,6 @@ namespace Win11Optimizer
 
         public void Activate() => LoadEntries();
 
-        // ── Toolbar ───────────────────────────────────────────────────────
         private void BuildToolbar()
         {
             _toolbar = new Panel { BackColor = Theme.SURFACE, Height = 54, Dock = DockStyle.Top };
@@ -48,7 +46,7 @@ namespace Win11Optimizer
             var title = new Label
             {
                 Text      = "// STARTUP MANAGER",
-                Font      = new Font("Segoe UI Black", 11f),
+                Font      = new Font("Courier New", 9.5f, FontStyle.Bold),
                 ForeColor = Theme.TEXT_PRI,
                 AutoSize  = true,
                 Location  = new Point(16, 15)
@@ -57,8 +55,8 @@ namespace Win11Optimizer
             _countLabel = new Label
             {
                 Text      = "",
-                Font      = new Font("Segoe UI", 8.5f),
-                ForeColor = Theme.TEXT_SEC,
+                Font      = new Font("Courier New", 7.5f),
+                ForeColor = Theme.TEXT_DIM,
                 AutoSize  = true,
                 Location  = new Point(240, 18)
             };
@@ -68,11 +66,11 @@ namespace Win11Optimizer
             _refreshBtn.Click += (s, e) => LoadEntries();
 
             _enableAllBtn = new FlatButton("✔ Enable All", Theme.SURFACE2)
-                { Size = new Size(96, 28), Font = new Font("Segoe UI", 8.5f), ForeColor = Theme.SUCCESS };
+                { Size = new Size(96, 28), Font = new Font("Courier New", 7.5f), ForeColor = Theme.SUCCESS };
             _enableAllBtn.Click += (s, e) => SetAll(true);
 
             _disableAllBtn = new FlatButton("✘ Disable All", Theme.SURFACE2)
-                { Size = new Size(100, 28), Font = new Font("Segoe UI", 8.5f), ForeColor = Theme.DANGER };
+                { Size = new Size(100, 28), Font = new Font("Courier New", 7.5f), ForeColor = Theme.DANGER };
             _disableAllBtn.Click += (s, e) => SetAll(false);
 
             _toolbar.SizeChanged += (s, e) => PositionToolbarButtons();
@@ -89,7 +87,6 @@ namespace Win11Optimizer
             _refreshBtn.Location    = new Point(r - _refreshBtn.Width, 13);
         }
 
-        // ── Scroll area ───────────────────────────────────────────────────
         private void BuildScrollArea()
         {
             _scrollPanel = new Panel
@@ -117,7 +114,6 @@ namespace Win11Optimizer
             };
         }
 
-        // ── Load ──────────────────────────────────────────────────────────
         private void LoadEntries()
         {
             _innerPanel.Controls.Clear();
@@ -130,8 +126,8 @@ namespace Win11Optimizer
                 var lbl = new Label
                 {
                     Text      = "No startup entries found.",
-                    Font      = new Font("Segoe UI", 10f),
-                    ForeColor = Theme.TEXT_SEC,
+                    Font      = new Font("Courier New", 9f),
+                    ForeColor = Theme.TEXT_DIM,
                     AutoSize  = true,
                     Location  = new Point(0, 20)
                 };
@@ -172,7 +168,6 @@ namespace Win11Optimizer
             UpdateCountLabel();
         }
 
-        // ── Reflow: stack all controls top-to-bottom at explicit Y ────────
         private void ReflowRows()
         {
             if (_innerPanel.Width < 10) return;
@@ -188,7 +183,6 @@ namespace Win11Optimizer
             _innerPanel.Height = y;
         }
 
-        // ── Toggle ────────────────────────────────────────────────────────
         private void OnToggle(object sender, StartupEntry entry)
         {
             if (entry.Source == StartupSource.StartupFolder)
@@ -218,7 +212,6 @@ namespace Win11Optimizer
             UpdateCountLabel();
         }
 
-        // ── Delete ────────────────────────────────────────────────────────
         private void OnDelete(object sender, StartupEntry entry)
         {
             var result = MessageBox.Show(
@@ -250,7 +243,6 @@ namespace Win11Optimizer
             UpdateCountLabel();
         }
 
-        // ── Bulk ──────────────────────────────────────────────────────────
         private void SetAll(bool enable)
         {
             foreach (var row in _rows.ToList())
@@ -272,7 +264,6 @@ namespace Win11Optimizer
         }
     }
 
-    // ── StartupSectionHeader ──────────────────────────────────────────────
     public class StartupSectionHeader : Panel
     {
         public StartupSectionHeader(string title)
@@ -300,7 +291,6 @@ namespace Win11Optimizer
         }
     }
 
-    // ── StartupEntryRow ───────────────────────────────────────────────────
     public class StartupEntryRow : Panel
     {
         public StartupEntry Entry { get; }
@@ -326,10 +316,9 @@ namespace Win11Optimizer
         {
             Entry     = entry;
             Height    = 66;
-            BackColor = Theme.SURFACE;
+            BackColor = Theme.CARD;
             Cursor    = Cursors.Default;
 
-            // ── Toggle ────────────────────────────────────────────────────
             _toggle = new CheckBox
             {
                 Checked    = entry.IsEnabled,
@@ -349,12 +338,11 @@ namespace Win11Optimizer
             UpdateToggleText();
             _toggle.CheckedChanged += (s, e) => { UpdateToggleText(); ToggleRequested?.Invoke(this, Entry); };
 
-            // ── Labels ────────────────────────────────────────────────────
             _nameLbl = new Label
             {
                 Text         = entry.Name,
-                Font         = new Font("Segoe UI Black", 9f),
-                ForeColor    = entry.IsEnabled ? Theme.TEXT_PRI : Theme.TEXT_SEC,
+                Font         = new Font("Courier New", 8.5f, FontStyle.Bold),
+                ForeColor    = entry.IsEnabled ? Theme.TEXT_PRI : Theme.TEXT_DIM,
                 AutoSize     = false,
                 Height       = 20,
                 Location     = new Point(60, 10),
@@ -367,7 +355,7 @@ namespace Win11Optimizer
             {
                 Text      = entry.Publisher,
                 Font      = new Font("Segoe UI", 8f),
-                ForeColor = Theme.TEXT_SEC,
+                ForeColor = Theme.TEXT_DIM,
                 AutoSize  = false,
                 Height    = 16,
                 Location  = new Point(60, 30),
@@ -378,7 +366,7 @@ namespace Win11Optimizer
             {
                 Text         = entry.Command,
                 Font         = new Font("Consolas", 7f),
-                ForeColor    = Color.FromArgb(80, 80, 120),
+                ForeColor    = Color.FromArgb(90, 85, 140),
                 AutoSize     = false,
                 Height       = 14,
                 Location     = new Point(60, 47),
@@ -387,7 +375,6 @@ namespace Win11Optimizer
                 UseMnemonic  = false
             };
 
-            // ── Badges ────────────────────────────────────────────────────
             Color srcColor = SourceColors.TryGetValue(entry.SourceLabel, out var sc)
                 ? sc : Theme.ACCENT;
             _sourceBadge = MakeBadge(entry.SourceLabel,
@@ -399,7 +386,6 @@ namespace Win11Optimizer
                 Color.FromArgb(30, impColor.R, impColor.G, impColor.B),
                 Color.FromArgb(180, impColor.R, impColor.G, impColor.B));
 
-            // ── Delete button ─────────────────────────────────────────────
             _deleteBtn = new Button
             {
                 Text      = "🗑",
@@ -452,7 +438,7 @@ namespace Win11Optimizer
         private static Label MakeBadge(string text, Color bg, Color fg) => new Label
         {
             Text      = text,
-            Font      = new Font("Segoe UI", 7f),
+            Font      = new Font("Courier New", 6.5f),
             ForeColor = fg,
             BackColor = bg,
             AutoSize  = true,

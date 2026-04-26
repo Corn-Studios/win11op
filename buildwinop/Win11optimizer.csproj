@@ -9,9 +9,39 @@
     <AssemblyName>Win11Optimizer</AssemblyName>
     <RootNamespace>Win11Optimizer</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <AssemblyVersion>0.3.0</AssemblyVersion>
-    <FileVersion>0.3.0</FileVersion>
-    <Version>0.3.0</Version>
+    <AssemblyVersion>1.0.0</AssemblyVersion>
+    <FileVersion>1.0.0</FileVersion>
+    <Version>1.0.0</Version>
+
+    <!-- ── SIZE REDUCTION ──────────────────────────────────────────────── -->
+
+    <!-- Single-file self-contained -->
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+
+    <!-- Compress the bundled assemblies inside the single file (~30% smaller) -->
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+
+    <!-- ReadyToRun pre-JIT — skip for size; smaller without it -->
+    <PublishReadyToRun>false</PublishReadyToRun>
+
+    <!-- Strip debug symbols from the output -->
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+
+    <!-- Optimize for size over speed in the IL -->
+    <Optimize>true</Optimize>
+
+    <!-- Remove XML documentation files bundled with assemblies -->
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+
+    <!-- Suppress satellite resource assemblies for unused cultures -->
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+
+    <!-- Don't include the .NET apphost stub separately -->
+    <IncludeNativeLibrariesForSelfExtract>false</IncludeNativeLibrariesForSelfExtract>
+
   </PropertyGroup>
-  
+
 </Project>

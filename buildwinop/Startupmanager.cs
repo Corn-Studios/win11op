@@ -63,7 +63,6 @@ namespace Win11Optimizer
 
     public static class StartupManager
     {
-        // ── Registry key paths ────────────────────────────────────────────
         private const string RunKeyUser    = @"Software\Microsoft\Windows\CurrentVersion\Run";
         private const string RunKeyMachine = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
 
@@ -77,7 +76,6 @@ namespace Win11Optimizer
         private static string CommonStartupFolder =>
             Environment.GetFolderPath(Environment.SpecialFolder.CommonStartup);
 
-        // ── Load all entries ──────────────────────────────────────────────
         public static List<StartupEntry> LoadAll()
         {
             var entries = new List<StartupEntry>();
@@ -161,7 +159,6 @@ namespace Win11Optimizer
             }
         }
 
-        // ── Toggle enable/disable ─────────────────────────────────────────
         public static bool SetEnabled(StartupEntry entry, bool enable)
         {
             try
@@ -194,7 +191,6 @@ namespace Win11Optimizer
             }
         }
 
-        // ── Delete entry ──────────────────────────────────────────────────
         public static bool Delete(StartupEntry entry)
         {
             try
@@ -221,7 +217,6 @@ namespace Win11Optimizer
             }
         }
 
-        // ── Publisher heuristic ───────────────────────────────────────────
         private static string GetPublisher(string command)
         {
             if (string.IsNullOrWhiteSpace(command)) return "";

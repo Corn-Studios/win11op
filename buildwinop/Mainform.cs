@@ -11,24 +11,36 @@ using System.Windows.Forms;
 
 namespace Win11Optimizer
 {
-    //  THEME -- Corn Studios website palette: pure black + lime green
     public static class Theme
     {
-        public static readonly Color BG          = Color.FromArgb( 10,  10,  10);  // near-pure black
-        public static readonly Color SURFACE     = Color.FromArgb( 18,  18,  18);  // card background
-        public static readonly Color SURFACE2    = Color.FromArgb( 26,  26,  26);  // elevated surface
-        public static readonly Color ACCENT      = Color.FromArgb(204, 255,   0);  // lime #CCFF00
-        public static readonly Color ACCENT_HOV  = Color.FromArgb(220, 255,  60);  // lighter lime on hover
-        public static readonly Color SUCCESS     = Color.FromArgb( 34, 197,  94);  // green (distinct from lime accent)
-        public static readonly Color WARNING     = Color.FromArgb(251, 191,  36);  // amber — kept
-        public static readonly Color DANGER      = Color.FromArgb(239,  68,  68);  // red — kept
-        public static readonly Color TEXT_PRI    = Color.FromArgb(240, 240, 240);  // clean white
-        public static readonly Color TEXT_SEC    = Color.FromArgb(100, 100, 100);  // cool mid-grey
-        public static readonly Color BORDER      = Color.FromArgb( 35,  35,  35);  // very dark border
-        public static readonly Color ACCENT_TEXT = Color.FromArgb( 10,  10,  10);  // black on lime buttons
+        public static readonly Color BG          = Color.FromArgb(  8,   8,  18);  // --bg:  #080812
+        public static readonly Color SURFACE     = Color.FromArgb( 19,  18,  42);  // --surface: #13122a
+        public static readonly Color SURFACE2    = Color.FromArgb( 26,  24,  53);  // --surface2: #1a1835
+        public static readonly Color CARD        = Color.FromArgb( 16,  15,  34);  // --card: #100f22
+
+        public static readonly Color ACCENT      = Color.FromArgb(245, 200,  66);  // --accent: #f5c842
+        public static readonly Color ACCENT_HOV  = Color.FromArgb(255, 215,  90);  // lighter gold on hover
+        public static readonly Color ACCENT_GLOW = Color.FromArgb( 40,  30,   8);  // subtle warm tint when selected
+
+        public static readonly Color METEOR      = Color.FromArgb(244,  81,  30);  // --meteor: #f4511e
+
+        public static readonly Color SKY_DEEP    = Color.FromArgb( 43,  45, 184);  // --sky-deep: #2b2db8
+        public static readonly Color SKY_PURPLE  = Color.FromArgb(124,  58, 237);  // --sky-purple: #7c3aed
+
+        public static readonly Color SUCCESS     = Color.FromArgb( 34, 197,  94);  // green
+        public static readonly Color WARNING     = Color.FromArgb(251, 191,  36);  // amber
+        public static readonly Color DANGER      = Color.FromArgb(239,  68,  68);  // red
+
+        public static readonly Color TEXT_PRI    = Color.FromArgb(240, 238, 252);  // --text: #f0eefc
+        public static readonly Color TEXT_SEC    = Color.FromArgb(106, 103, 155);  // between --text-dim and --muted
+        public static readonly Color TEXT_DIM    = Color.FromArgb(160, 157, 192);  // --text-dim: #a09dc0
+
+        public static readonly Color BORDER      = Color.FromArgb( 42,  40,  80);  // --border: #2a2850
+        public static readonly Color BORDER2     = Color.FromArgb( 61,  58, 112);  // --border2: #3d3a70
+
+        public static readonly Color ACCENT_TEXT = Color.FromArgb(  8,   8,  18);  // dark text on gold buttons
     }
 
-    //  TWEAK CATALOG -- defines all available tweaks, their categories, descriptions and how to apply them
     public class TweakEntry
     {
         public string Name        { get; set; }
@@ -57,15 +69,14 @@ namespace Win11Optimizer
 
         public static readonly List<TweakEntry> All = new List<TweakEntry>
         {
-            // ── PERFORMANCE ───────────────────────────────────────────────
             E("Performance","⚡",true,"Perf_PowerPlan",
                 "High Performance Power Plan",
                 "Switches power plan to maximum performance mode",
-                "Runs: powercfg -setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c\nPrevents CPU from downclocking when idle. Increases power draw but eliminates latency from frequency scaling."),
+                "Runs: powercfg -setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c"),
             E("Performance","🔋",true,"Perf_PowerThrottle",
                 "Disable Power Throttling",
                 "Prevents Windows throttling background CPU usage",
-                "Sets HKLM\\...\\PowerThrottling → PowerThrottlingOff = 1\nStops Windows from intentionally capping background process CPU frequency to save power."),
+                "Sets HKLM\\...\\PowerThrottling → PowerThrottlingOff = 1"),
             E("Performance","🗂",true,"Perf_SysMain",
                 "Disable SysMain (Superfetch)",
                 "Stops preloading rarely-used apps into RAM",
@@ -77,189 +88,184 @@ namespace Win11Optimizer
             E("Performance","⏱",true,"Perf_StartupDelay",
                 "Remove Startup Delay",
                 "Eliminates the artificial Explorer startup pause",
-                "Sets HKCU\\...\\Explorer\\Serialize → StartupDelayInMSec = 0\nWindows intentionally delays startup apps by a few seconds. This removes that delay."),
+                "Sets HKCU\\...\\Explorer\\Serialize → StartupDelayInMSec = 0"),
             E("Performance","🖼",true,"Perf_VisualFX",
                 "Visual Effects: Best Performance",
                 "Turns off animations, shadows and fancy rendering",
-                "Sets HKCU\\...\\VisualEffects → VisualFXSetting = 2\nDisables window animations, drop shadows, thumbnail previews, and smooth scrolling."),
+                "Sets HKCU\\...\\VisualEffects → VisualFXSetting = 2"),
             E("Performance","📁",true,"Perf_NtfsLastAccess",
                 "Disable NTFS Last-Access Timestamps",
                 "Reduces filesystem writes on every file read",
-                "Runs: fsutil behavior set disablelastaccess 1\nNTFS updates a timestamp every time any file is read. Disabling this eliminates that extra write on every read operation."),
+                "Runs: fsutil behavior set disablelastaccess 1"),
             E("Performance","📄",true,"Perf_8Dot3",
                 "Disable 8.3 Filenames",
                 "Removes legacy short filename generation on NTFS",
-                "Runs: fsutil behavior set disable8dot3 1\nNTFS generates a legacy 8.3 format alias (e.g. PROGRA~1) for every file. Disabling this reduces directory write overhead."),
+                "Runs: fsutil behavior set disable8dot3 1"),
             E("Performance","💤",true,"Perf_Hibernate",
                 "Disable Hibernation",
                 "Frees several GB of disk space, speeds shutdown",
-                "Runs: powercfg -h off\nDeletes hiberfil.sys (typically 4–16 GB). Hibernate and Fast Startup are disabled. Cold boots will be slightly slower."),
+                "Runs: powercfg -h off"),
             E("Performance","🧠",true,"Perf_MemCompression",
                 "Disable Memory Compression",
                 "Reduces CPU overhead when RAM is under pressure",
-                "Runs: Disable-MMAgent -MemoryCompression (PowerShell)\nWindows compresses RAM pages to fit more in memory. Disabling trades CPU cycles for more direct RAM use — better on systems with 16 GB+."),
+                "Runs: Disable-MMAgent -MemoryCompression (PowerShell)"),
             E("Performance","⏰",true,"Perf_TimerRes",
                 "Set Timer Resolution to 0.5ms",
                 "Calls timeBeginPeriod(1) + registry key for sub-ms scheduler ticks",
-                "Calls timeBeginPeriod(1) via P/Invoke + sets GlobalTimerResolutionRequests = 1\nThe default Windows scheduler tick is 15.6ms. This forces ~0.5ms ticks, dramatically improving sleep/wait precision for games and audio."),
+                "Calls timeBeginPeriod(1) via P/Invoke + sets GlobalTimerResolutionRequests = 1"),
 
-            // ── PRIVACY ───────────────────────────────────────────────────
             E("Privacy","📡",true,"Priv_Telemetry",
                 "Disable Telemetry",
                 "Blocks Microsoft data collection at the registry level",
-                "Sets AllowTelemetry = 0 in both machine and policy DataCollection keys\nLevel 0 is the minimum telemetry setting. Prevents Windows from sending diagnostic data to Microsoft servers."),
+                "Sets AllowTelemetry = 0 in both machine and policy DataCollection keys"),
             E("Privacy","🛑",true,"Priv_DiagTrack",
                 "Disable DiagTrack Service",
                 "Stops the Connected User Experiences telemetry service",
-                "Disables services: DiagTrack, dmwappushservice, RetailDemo, WerSvc\nDiagTrack is the primary telemetry upload service. dmwappushservice handles WAP push messages for device management."),
+                "Disables services: DiagTrack, dmwappushservice, RetailDemo, WerSvc"),
             E("Privacy","📢",true,"Priv_AdvertisingId",
                 "Disable Advertising ID",
                 "Prevents apps from accessing your ad tracking ID",
-                "Sets AdvertisingInfo → Enabled = 0 (user) + DisabledByGroupPolicy = 1 (machine)\nWindows assigns each user a unique advertising ID that apps can read to serve targeted ads. This zeros it out."),
+                "Sets AdvertisingInfo → Enabled = 0 (user) + DisabledByGroupPolicy = 1 (machine)"),
             E("Privacy","🔎",true,"Priv_BingStart",
                 "Disable Bing in Start Menu",
                 "Removes web search results from the Start search bar",
-                "Sets DisableSearchBoxSuggestions = 1 + BingSearchEnabled = 0\nPrevents Start menu searches from being sent to Bing. Results become local-only."),
+                "Sets DisableSearchBoxSuggestions = 1 + BingSearchEnabled = 0"),
             E("Privacy","🎙",true,"Priv_Cortana",
                 "Disable Cortana Consent",
                 "Turns off Cortana data collection consent flag",
-                "Sets CortanaConsent = 0 in HKCU\\...\\Search\nRemoves Cortana's consent flag, preventing it from activating data collection features."),
+                "Sets CortanaConsent = 0 in HKCU\\...\\Search"),
             E("Privacy","📊",true,"Priv_ActivityFeed",
                 "Disable Activity Feed",
                 "Stops Windows logging app and file activity history",
-                "Sets EnableActivityFeed = 0, PublishUserActivities = 0, UploadUserActivities = 0\nWindows Timeline / Activity Feed logs everything you open. This disables logging and uploading of that history."),
+                "Sets EnableActivityFeed = 0, PublishUserActivities = 0, UploadUserActivities = 0"),
             E("Privacy","📍",true,"Priv_Location",
                 "Disable Location Tracking",
                 "Blocks apps from accessing your physical location",
-                "Sets DisableLocation = 1 in LocationAndSensors policy key\nPrevents UWP and Win32 apps from querying your GPS/network location via the Windows Location API."),
+                "Sets DisableLocation = 1 in LocationAndSensors policy key"),
             E("Privacy","📷",true,"Priv_Camera",
                 "Block App Camera Access",
                 "Prevents UWP apps from using the webcam by default",
-                "Sets LetAppsAccessCamera = 2 (Force Deny) in AppPrivacy policy\nBlocks UWP apps from accessing the camera. Value 2 = force deny for all apps."),
+                "Sets LetAppsAccessCamera = 2 (Force Deny) in AppPrivacy policy"),
             E("Privacy","⚠",true,"Priv_WER",
                 "Disable Windows Error Reporting",
                 "Stops crash dumps and reports being sent to Microsoft",
-                "Sets WER\\Disabled = 1 in Windows Error Reporting policy key\nPrevents Windows from collecting crash data and sending minidumps to Microsoft's Watson servers."),
+                "Sets WER\\Disabled = 1 in Windows Error Reporting policy key"),
             E("Privacy","🛡",true,"Priv_SmartScreen",
                 "Disable SmartScreen (Explorer)",
                 "Removes SmartScreen cloud checks in File Explorer",
-                "Sets EnableSmartScreen = 0 in Windows System policy\nStops File Explorer from sending file reputation checks to Microsoft's SmartScreen cloud service."),
+                "Sets EnableSmartScreen = 0 in Windows System policy"),
             E("Privacy","🗓",true,"Priv_TelemetryTasks",
                 "Disable Scheduled Telemetry Tasks",
                 "Kills CEIP, AppraiserV2, Proxy and DiskDiag data tasks",
-                "Disables 6 scheduled tasks under Microsoft\\Windows\\Application Experience, Autochk, CEIP, DiskDiagnostic\nThese tasks run periodically to collect compatibility and usage data. Disabling them stops background telemetry runs."),
+                "Disables 6 scheduled tasks under Microsoft\\Windows\\Application Experience, Autochk, CEIP, DiskDiagnostic"),
             E("Privacy","👁",true,"Priv_AppTracking",
                 "Disable App Launch Tracking",
                 "Stops Windows logging which apps you open and when",
-                "Sets Start_TrackProgs = 0 in Explorer Advanced\nWindows tracks app launch frequency to personalize the Start menu. This disables that logging."),
+                "Sets Start_TrackProgs = 0 in Explorer Advanced"),
             E("Privacy","💬",true,"Priv_Feedback",
                 "Disable Feedback Requests",
                 "Prevents Windows asking you to rate/review features",
-                "Sets NumberOfSIUFInPeriod = 0 in HKCU\\...\\Siuf\\Rules\nSIUF = Software Improvement User Feedback. Setting to 0 disables all periodic feedback prompts."),
+                "Sets NumberOfSIUFInPeriod = 0 in HKCU\\...\\Siuf\\Rules"),
             E("Privacy","💬",true,"Priv_ChatIcon",
                 "Disable Chat / Teams Taskbar Icon",
                 "Removes the Teams/Chat pinned icon from the taskbar",
-                "Sets TaskbarMn = 0 in Explorer Advanced\nHides the Teams/Chat button that Microsoft pins to the taskbar by default in Windows 11."),
+                "Sets TaskbarMn = 0 in Explorer Advanced"),
             E("Privacy","🤖",true,"Priv_Recall",
                 "Disable Windows Recall",
                 "Kills AI screenshot feature on Copilot+ PCs (no-op otherwise)",
-                "Sets DisableAIDataAnalysis = 1 in both machine and user WindowsAI policy keys\nRecall takes screenshots of everything on screen every few seconds for AI indexing. This disables it. No-op on non-Copilot+ hardware."),
+                "Sets DisableAIDataAnalysis = 1 in both machine and user WindowsAI policy keys"),
             E("Privacy","🚫",true,"Priv_HostsBlock",
                 "Block Telemetry Hosts",
                 "Adds 35 Microsoft telemetry domains to the hosts file (0.0.0.0)",
-                "Appends 35 entries to C:\\Windows\\System32\\drivers\\etc\\hosts\nRoutes Microsoft telemetry domains to 0.0.0.0 (null route) at the OS level, blocking them regardless of app behavior. Fully reversible via Undo."),
+                "Appends 35 entries to C:\\Windows\\System32\\drivers\\etc\\hosts"),
 
-            // ── RESPONSIVENESS ────────────────────────────────────────────
             E("Responsiveness","🖱",true,"Resp_MenuDelay",
                 "Instant Menu Show",
                 "Sets menu open delay to 0 ms for snappier menus",
-                "Sets MenuShowDelay = 0 in HKCU\\Control Panel\\Desktop\nWindows adds an artificial delay before showing context menus and submenus. Default is 400ms."),
+                "Sets MenuShowDelay = 0 in HKCU\\Control Panel\\Desktop"),
             E("Responsiveness","⚡",true,"Resp_AppKill",
                 "Fast App Kill Timeout",
                 "Reduces wait time before force-killing frozen apps",
-                "Sets WaitToKillAppTimeout = 2000ms, HungAppTimeout = 1000ms\nDefault timeouts are 5000ms and 5000ms. Faster values mean less waiting at shutdown when apps are unresponsive."),
+                "Sets WaitToKillAppTimeout = 2000ms, HungAppTimeout = 1000ms"),
             E("Responsiveness","⏹",true,"Resp_ServiceKill",
                 "Fast Service Kill Timeout",
                 "Cuts shutdown wait for slow-stopping services",
-                "Sets WaitToKillServiceTimeout = 2000ms (machine-wide)\nDefault is 5000ms. Reduces how long Windows waits for services to gracefully stop during shutdown."),
+                "Sets WaitToKillServiceTimeout = 2000ms (machine-wide)"),
             E("Responsiveness","🔚",true,"Resp_AutoEndTasks",
                 "Auto End Tasks on Shutdown",
                 "Automatically kills hung apps instead of prompting",
-                "Sets AutoEndTasks = 1 in HKCU\\Control Panel\\Desktop\nInstead of showing the 'This app is preventing shutdown' dialog, Windows will force-close unresponsive apps automatically."),
+                "Sets AutoEndTasks = 1 in HKCU\\Control Panel\\Desktop"),
             E("Responsiveness","⏱",true,"Resp_PlatformTick",
                 "Platform Tick (High-Res Timer)",
                 "Forces constant-rate high-resolution system timer",
-                "Runs: bcdedit /set useplatformtick yes\nForces the system to use the platform timer (HPET/TSC) at a constant rate instead of the dynamic tick. Reduces micro-stutter."),
+                "Runs: bcdedit /set useplatformtick yes"),
             E("Responsiveness","💡",true,"Resp_WinTips",
                 "Disable Windows Tips",
                 "Stops the 'Did you know...' popups and suggestions",
-                "Sets SoftLandingEnabled = 0 in ContentDeliveryManager\nDisables the 'Did you know...' tips that appear in the notification area and Start menu."),
+                "Sets SoftLandingEnabled = 0 in ContentDeliveryManager"),
             E("Responsiveness","📰",true,"Resp_SuggestedContent",
                 "Disable Suggested Content",
                 "Removes app install suggestions from the Start menu",
-                "Sets SubscribedContent-338389Enabled = 0 in ContentDeliveryManager\nRemoves the 'Suggested apps' section from the Start menu that Microsoft uses to push app installs."),
+                "Sets SubscribedContent-338389Enabled = 0 in ContentDeliveryManager"),
 
-            // ── GAMING ────────────────────────────────────────────────────
             E("Gaming","🖥",false,"Game_HAGS",
                 "Enable HAGS",
                 "Hardware-Accelerated GPU Scheduling — reduces GPU latency",
-                "Sets HwSchMode = 2 in HKLM\\...\\GraphicsDrivers\nMoves GPU memory management to the GPU itself instead of the CPU, reducing latency. Requires Win10 2004+ and a supported GPU driver."),
+                "Sets HwSchMode = 2 in HKLM\\...\\GraphicsDrivers"),
             E("Gaming","🎮",false,"Game_GameMode",
                 "Enable Game Mode",
                 "Tells Windows to prioritize foreground game processes",
-                "Sets AllowAutoGameMode = 1, AutoGameModeEnabled = 1 in GameBar registry\nGame Mode redirects CPU/GPU resources toward the active game process and suppresses background Windows Update activity."),
+                "Sets AllowAutoGameMode = 1, AutoGameModeEnabled = 1 in GameBar registry"),
             E("Gaming","🖱",false,"Game_MouseAccel",
                 "Disable Mouse Acceleration",
                 "Removes pointer precision for 1:1 raw mouse input",
-                "Sets MouseSpeed = 0, MouseThreshold1 = 0, MouseThreshold2 = 0\nPointer Precision (mouse acceleration) changes cursor speed based on physical movement speed. Setting to 0 gives a 1:1 linear response."),
+                "Sets MouseSpeed = 0, MouseThreshold1 = 0, MouseThreshold2 = 0"),
             E("Gaming","⚡",false,"Game_CPUPriority",
                 "CPU Foreground Priority Boost",
                 "Increases CPU time slice for the active window/game",
-                "Sets Win32PrioritySeparation = 38 in PriorityControl\nValue 38 = short, variable time slices with maximum foreground boost. Gives the active game process more CPU time at the cost of background tasks."),
+                "Sets Win32PrioritySeparation = 38 in PriorityControl"),
             E("Gaming","📹",false,"Game_DVR",
                 "Disable Game DVR / Capture",
                 "Turns off Xbox Game Bar background recording",
-                "Sets AppCaptureEnabled = 0 (user) + AllowGameDVR = 0 (policy)\nGame DVR keeps a rolling video buffer of your gameplay, consuming GPU encoder resources and VRAM even when not actively recording."),
+                "Sets AppCaptureEnabled = 0 (user) + AllowGameDVR = 0 (policy)"),
             E("Gaming","🪟",false,"Game_FSO",
                 "Disable Fullscreen Optimisations",
                 "Forces exclusive fullscreen for lower input latency",
-                "Sets GameDVR_FSEBehaviorMode = 2, GameDVR_HonorUserFSEBehaviorMode = 1\nFSO (Fullscreen Optimizations) silently runs games in borderless windowed mode. Disabling forces true exclusive fullscreen for lower flip latency."),
+                "Sets GameDVR_FSEBehaviorMode = 2, GameDVR_HonorUserFSEBehaviorMode = 1"),
             E("Gaming","🎯",false,"Game_GPUPower",
                 "GPU Power: Prefer Maximum Performance",
                 "Sets D3D power policy to never downclock the GPU",
-                "Sets PerfLevelSrc = 0x3322 in the D3D GPU class driver key\nPrevents the GPU from downclocking to save power. The GPU stays at max clocks, eliminating latency spikes from frequency scaling."),
+                "Sets PerfLevelSrc = 0x3322 in the D3D GPU class driver key"),
             E("Gaming","🟢",false,"Game_NvidiaTelemetry",
                 "Disable NVIDIA Telemetry Services",
                 "Stops NvTelemetryContainer & NvDisplayContainerLS phoning home",
-                "Disables services NvTelemetryContainer, NvDisplayContainerLS + 3 NVIDIA scheduled tasks\nNVIDIA installs telemetry services that periodically send GPU usage data to NVIDIA servers. No-op if NVIDIA drivers aren't installed."),
+                "Disables services NvTelemetryContainer, NvDisplayContainerLS + 3 NVIDIA scheduled tasks"),
 
-            // ── NETWORK ───────────────────────────────────────────────────
             E("Network","📶",false,"Net_Nagle",
                 "Disable Nagle's Algorithm",
                 "Reduces TCP packet buffering — lowers game ping",
-                "Sets TcpAckFrequency = 1, TCPNoDelay = 1 on all network adapter subkeys\nNagle's algorithm buffers small TCP packets together before sending, adding up to 200ms latency. Disabling sends packets immediately."),
+                "Sets TcpAckFrequency = 1, TCPNoDelay = 1 on all network adapter subkeys"),
             E("Network","🔁",false,"Net_RSS",
                 "Enable Receive-Side Scaling",
                 "Spreads network processing across CPU cores",
-                "Runs: netsh int tcp set global rss=enabled\nRSS distributes network packet processing across multiple CPU cores instead of pinning it to one core, improving throughput on multi-core systems."),
+                "Runs: netsh int tcp set global rss=enabled"),
             E("Network","🎛",false,"Net_TCPAutoTune",
                 "TCP Auto-Tuning: Normal",
                 "Enables adaptive TCP receive buffer scaling",
-                "Runs: netsh int tcp set global autotuninglevel=normal\nAllows Windows to dynamically size TCP receive buffers based on bandwidth-delay product. 'Normal' is the recommended balanced setting."),
+                "Runs: netsh int tcp set global autotuninglevel=normal"),
             E("Network","🚦",false,"Net_Throttle",
                 "Disable Network Throttling Index",
                 "Removes multimedia network rate caps",
-                "Sets NetworkThrottlingIndex = 0xFFFFFFFF in Multimedia\\SystemProfile\nWindows throttles network throughput for non-multimedia apps to 10 packets/ms by default. Setting to FFFFFFFF removes this cap."),
+                "Sets NetworkThrottlingIndex = 0xFFFFFFFF in Multimedia\\SystemProfile"),
             E("Network","🏎",false,"Net_MMResponsive",
                 "Max Multimedia Responsiveness",
                 "Sets SystemResponsiveness to 0 for games/audio",
-                "Sets SystemResponsiveness = 0 in Multimedia\\SystemProfile\nDefault is 20, meaning 20% of CPU time is reserved for background tasks. Setting to 0 gives games and audio full CPU access."),
+                "Sets SystemResponsiveness = 0 in Multimedia\\SystemProfile"),
             E("Network","🔐",false,"Net_DoH",
                 "DNS over HTTPS (Cloudflare 1.1.1.1)",
                 "Enables DoH via Windows DNS Client, routes queries encrypted",
-                "Sets EnableAutoDoh = 2, registers 1.1.1.1 and 1.0.0.1 with Cloudflare DoH template\nEncrypts DNS queries so your ISP can't see what domains you resolve. Uses Cloudflare's privacy-first resolver."),
+                "Sets EnableAutoDoh = 2, registers 1.1.1.1 and 1.0.0.1 with Cloudflare DoH template"),
 
-            // ── BLOATWARE ─────────────────────────────────────────────────
             E("Bloatware","📰",false,"Bloat_Bing",
                 "Remove Bing News & Weather",
                 "Uninstalls BingNews and BingWeather UWP packages",
@@ -301,15 +307,14 @@ namespace Win11Optimizer
                 "Removes legacy 3D apps nobody asked for",
                 "Runs Remove-AppxPackage for *3DViewer*, *Print3D* (user + provisioned)\n⚠ Cannot be undone — reinstall from Microsoft Store if needed."),
 
-            // ── SECURITY ──────────────────────────────────────────────────
             E("Security","🔇",false,"Sec_AutoRun",
                 "Disable AutoRun / AutoPlay",
                 "Blocks autorun.inf and AutoPlay on all drive types",
-                "Sets NoDriveTypeAutoRun = 0xFF at user + machine scope, blocks autorun.inf via IniFileMapping\nPrevents malware on USB drives from executing automatically. A fundamental security hardening step."),
+                "Sets NoDriveTypeAutoRun = 0xFF at user + machine scope, blocks autorun.inf via IniFileMapping"),
             E("Security","🖥",false,"Sec_RDP",
                 "Disable Remote Desktop (RDP)",
                 "Refuses all inbound RDP connections, closes firewall rule",
-                "Sets fDenyTSConnections = 1 + disables 'Remote Desktop' firewall rule group\nCloses port 3389. Prevents unauthorized remote access. Re-enable manually if you need RDP."),
+                "Sets fDenyTSConnections = 1 + disables 'Remote Desktop' firewall rule group"),
             E("Security","🪟",false,"Sec_SMBv1",
                 "Disable SMBv1",
                 "Removes the WannaCry/EternalBlue-vulnerable SMBv1 protocol",
@@ -321,35 +326,33 @@ namespace Win11Optimizer
             E("Security","🛡",false,"Sec_Defender",
                 "Ensure Defender Real-Time Protection",
                 "Forces Defender real-time monitoring ON via policy + cmdlet",
-                "Sets DisableAntiSpyware = 0, DisableRealtimeMonitoring = 0 + runs Set-MpPreference -DisableRealtimeMonitoring $false\nEnsures Defender can't be disabled by policy or third-party tweakers. A safety net tweak."),
+                "Sets DisableAntiSpyware = 0, DisableRealtimeMonitoring = 0 + runs Set-MpPreference -DisableRealtimeMonitoring $false"),
 
-            // ── ADVANCED ──────────────────────────────────────────────────
             Adv("⚙","ProcessorScheduling","Adv_ProcessorScheduling",
                 "Processor Scheduling: Programs",
                 "Win32PrioritySeparation=38, max foreground CPU boost",
-                "Sets Win32PrioritySeparation = 38 in PriorityControl\nBit field: short variable intervals (bits 0-1 = 10), variable size (bit 2 = 1), max foreground boost (bits 4-5 = 11). Maximizes active window CPU allocation."),
+                "Sets Win32PrioritySeparation = 38 in PriorityControl"),
             Adv("⏱","DisableDynamicTick","Adv_DynamicTick",
                 "Disable Dynamic Tick",
                 "Forces constant high-res IRQ8 timer, reduces micro-stutter",
-                "Runs: bcdedit /set disabledynamictick yes\nDynamic tick allows the timer to skip beats when the CPU is idle to save power. Disabling forces a constant timer rate, eliminating stutter caused by the timer resuming."),
+                "Runs: bcdedit /set disabledynamictick yes"),
             Adv("🔥","DisableCpuThrottling","Adv_CPUThrottle",
                 "Disable CPU Throttling",
                 "Prevents Windows pulling background process CPU clocks",
-                "Sets ValueMax = 0 in THROTTLE_POLICY key + powercfg PERFAUTONOMOUS = 0\nPrevents Windows from pulling down CPU clocks for background processes. Can increase power consumption significantly."),
+                "Sets ValueMax = 0 in THROTTLE_POLICY key + powercfg PERFAUTONOMOUS = 0"),
             Adv("💾","EnableTrim","Adv_TRIM",
                 "Ensure SSD TRIM Enabled",
                 "Sets disabledeletenotify=0, keeps SSD write speeds consistent",
-                "Runs: fsutil behavior set disabledeletenotify 0\nTRIM tells the SSD controller which blocks are no longer in use so it can erase them proactively. Keeps sustained write speeds from degrading."),
+                "Runs: fsutil behavior set disabledeletenotify 0"),
             Adv("🎨","AggressiveAnimations","Adv_Animations",
                 "Aggressive Animation Disabling",
                 "Kills UserPreferencesMask, TaskbarAnim, MinAnimate bits",
-                "Sets UserPreferencesMask binary value + TaskbarAnimations = 0, MinAnimate = 0, ListviewShadow = 0\nMore aggressive than the Visual FX tweak — directly manipulates the bitmask that controls every individual animation effect."),
+                "Sets UserPreferencesMask binary value + TaskbarAnimations = 0, MinAnimate = 0, ListviewShadow = 0"),
         };
 
         public static IEnumerable<TweakEntry> ForCategory(string cat) =>
             cat == "All" ? All : All.Where(t => t.Category == cat);
     }
-    //  WINDOWS VERSION -- used for display windows version info and for tweak compatibility checks
 
     public static class WinVersion
     {
@@ -375,9 +378,7 @@ namespace Win11Optimizer
         }
     }
 
-    //  TWEAK LOG -- keeps a history of tweak runs, their outcomes and details for the History tab. Stored in a JSON file in the app directory.
-
-    public static class ChangeLog
+public static class ChangeLog
     {
         static readonly string LogFile =
             Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "changelog.json");
@@ -434,28 +435,22 @@ namespace Win11Optimizer
 
     public static class AdminWarning { public static bool Show { get; set; } = false; }
 
-    //  MAIN FORM -- constructs the entire UI, handles user interactions, runs tweaks and updates the changelog
-
-    public class MainForm : Form
+public class MainForm : Form
     {
-        // ── Layout ─────────────────────────────────────────────────────────
         private Panel _topBar;
         private Panel _sidebar;
         private Panel _mainArea;
         private Panel _bottomBar;
         private Panel _logPanel;
 
-        // ── Top bar ────────────────────────────────────────────────────────
         private Label _winVerBadge;
         private Label _adminBadge;
 
-        // ── Search & Presets ───────────────────────────────────────────────
         private Panel       _searchBar;
         private TextBox     _searchBox;
         private FlatButton  _clearSearchBtn;
         private string      _searchQuery = "";
 
-        // ── Sidebar ────────────────────────────────────────────────────────
         private static readonly string[] SidebarCategories =
         {
             "All", "Performance", "Privacy", "Responsiveness",
@@ -479,10 +474,8 @@ namespace Win11Optimizer
 
         private string _activeCategory = "All";
 
-        // ── Grid ───────────────────────────────────────────────────────────
         private FlowLayoutPanel          _tileGrid;
         private readonly List<TweakTile> _tiles = new();
-        // ── Bottom bar ─────────────────────────────────────────────────────
         private Label      _statusLabel;
         private Label      _selCountLabel;
         private Panel      _progOuter;
@@ -492,21 +485,17 @@ namespace Win11Optimizer
         private FlatButton _clearBtn;
         private CheckBox   _restoreChk;
 
-        // ── History ────────────────────────────────────────────────────────
         private Panel _histPanel;
 
         private StartupTab _startupTab;
 
-        // ── Log ────────────────────────────────────────────────────────────
         private RichTextBox _logBox;
 
-        // ── Hover tooltip ──────────────────────────────────────────────────
         private Panel       _tooltip;
         private Label       _ttTitle;
         private Label       _ttWhat;
         private System.Windows.Forms.Timer _ttHideTimer;
 
-        // ── State ──────────────────────────────────────────────────────────
         private bool _isRunning = false;
         private int  _totalTweaks, _doneTweaks;
 
@@ -518,9 +507,7 @@ namespace Win11Optimizer
             if (AdminWarning.Show) _adminBadge.Visible = true;
         }
 
-        //  INIT -- sets up the entire UI, docks panels and builds the tooltip (which needs to be built before the Layout event)
-
-        private void InitUI()
+private void InitUI()
         {
             Text            = "Win11 Optimizer";
             Size            = new Size(1200, 760);
@@ -569,24 +556,38 @@ namespace Win11Optimizer
             }
         }
 
-        //  TOP BAR -- contains the app title, Windows version badge, admin warning badge and GitHub link
-
-        private void BuildTopBar()
+private void BuildTopBar()
         {
             _topBar = new Panel { BackColor = Theme.SURFACE, Height = 60 };
             _topBar.Paint += (s, e) =>
             {
+                var g = e.Graphics;
+                // Bottom border line
                 using var p = new Pen(Theme.BORDER);
-                e.Graphics.DrawLine(p, 0, _topBar.Height - 1, _topBar.Width, _topBar.Height - 1);
+                g.DrawLine(p, 0, _topBar.Height - 1, _topBar.Width, _topBar.Height - 1);
+                // Subtle gold top accent bar (like website nav)
+                using var bar = new SolidBrush(Color.FromArgb(30, Theme.ACCENT.R, Theme.ACCENT.G, Theme.ACCENT.B));
+                g.FillRectangle(bar, 0, 0, _topBar.Width, 2);
+            };
+
+            // "CORN_STUDIOS" style logo label — matches website nav-logo font
+            var cornLbl = new Label
+            {
+                Text      = "CORN_STUDIOS",
+                Font      = new Font("Courier New", 7f, FontStyle.Bold),
+                ForeColor = Theme.ACCENT,
+                AutoSize  = true,
+                Location  = new Point(18, 10),
+                BackColor = Color.Transparent
             };
 
             var titleLbl = new Label
             {
                 Text      = "WIN11 OPTIMIZER  ⚡",
-                Font      = new Font("Arial Black", 11f),
+                Font      = new Font("Courier New", 9f, FontStyle.Bold),
                 ForeColor = Theme.TEXT_PRI,
                 AutoSize  = true,
-                Location  = new Point(18, 17)
+                Location  = new Point(18, 30)
             };
 
             _winVerBadge = new Label { Visible = false };
@@ -595,17 +596,17 @@ namespace Win11Optimizer
             {
                 Text      = "⚠  Not running as Administrator — some tweaks may fail",
                 AutoSize  = true,
-                Font      = new Font("Segoe UI", 8.5f),
+                Font      = new Font("Courier New", 7.5f),
                 ForeColor = Theme.WARNING,
-                Location  = new Point(18, 40),
+                Location  = new Point(18, 44),
                 Visible   = false
             };
 
             var ghLink = new FlatButton("⭐  GITHUB ↗", Theme.ACCENT)
             {
                 AutoSize  = false,
-                Size      = new Size(110, 30),
-                Font      = new Font("Courier New", 8f, FontStyle.Bold),
+                Size      = new Size(115, 30),
+                Font      = new Font("Courier New", 7.5f, FontStyle.Bold),
                 ForeColor = Theme.ACCENT_TEXT,
                 Cursor    = Cursors.Hand
             };
@@ -617,25 +618,34 @@ namespace Win11Optimizer
                 ghLink.Location = new Point(_topBar.Width - ghLink.Width - 16, (_topBar.Height - ghLink.Height) / 2);
 
             _topBar.Controls.AddRange(new Control[]
-                { titleLbl, _winVerBadge, _adminBadge, ghLink });
+                { cornLbl, titleLbl, _winVerBadge, _adminBadge, ghLink });
         }
 
         //  SIDEBAR --
 
         private void BuildSidebar()
         {
-            _sidebar = new Panel { BackColor = Theme.SURFACE, Width = 200 };
+            _sidebar = new Panel { BackColor = Theme.SURFACE, Width = 210 };
             _sidebar.Paint += (s, e) =>
             {
+                var g = e.Graphics;
                 using var p = new Pen(Theme.BORDER);
-                e.Graphics.DrawLine(p, _sidebar.Width - 1, 0, _sidebar.Width - 1, _sidebar.Height);
+                g.DrawLine(p, _sidebar.Width - 1, 0, _sidebar.Width - 1, _sidebar.Height);
+                // Subtle purple gradient at top — matches website section hero
+                using var grad = new System.Drawing.Drawing2D.LinearGradientBrush(
+                    new Rectangle(0, 0, _sidebar.Width, 80),
+                    Color.FromArgb(18, Theme.SKY_PURPLE.R, Theme.SKY_PURPLE.G, Theme.SKY_PURPLE.B),
+                    Color.Transparent,
+                    System.Drawing.Drawing2D.LinearGradientMode.Vertical);
+                g.FillRectangle(grad, 0, 0, _sidebar.Width, 80);
             };
 
+            // "// CATEGORIES" — website section-label mono style with gold accent
             var hdr = new Label
             {
                 Text      = "// CATEGORIES",
-                Font      = new Font("Courier New", 7.5f, FontStyle.Bold),
-                ForeColor = Theme.TEXT_SEC,
+                Font      = new Font("Courier New", 7f, FontStyle.Bold),
+                ForeColor = Theme.ACCENT,
                 AutoSize  = true,
                 Location  = new Point(14, 14)
             };
@@ -649,25 +659,25 @@ namespace Win11Optimizer
                     var div = new Panel
                     {
                         BackColor = Theme.BORDER,
-                        Bounds    = new Rectangle(8, y + 2, 184, 1)
+                        Bounds    = new Rectangle(8, y + 2, 194, 1)
                     };
                     _sidebar.Controls.Add(div);
                     y += 10;
                 }
 
                 var btn = MakeSidebarBtn(cat);
-                btn.SetBounds(8, y, 184, 36);
+                btn.SetBounds(8, y, 194, 36);
                 _sidebar.Controls.Add(btn);
                 y += 38;
             }
 
             y += 8;
             var selAll = new FlatButton("✔ Select All", Theme.ACCENT);
-            selAll.SetBounds(8, y, 88, 28);
+            selAll.SetBounds(8, y, 92, 28);
             selAll.Click += (s, e) => SetAllInView(true);
 
             var selNone = new FlatButton("✘ None", Theme.SURFACE2);
-            selNone.SetBounds(104, y, 88, 28);
+            selNone.SetBounds(108, y, 94, 28);
             selNone.Click += (s, e) => SetAllInView(false);
 
             _sidebar.Controls.AddRange(new Control[] { selAll, selNone });
@@ -684,15 +694,15 @@ namespace Win11Optimizer
                 TextAlign = ContentAlignment.MiddleLeft,
                 FlatStyle = FlatStyle.Flat,
                 BackColor = active ? Theme.ACCENT : Color.Transparent,
-                ForeColor = active ? Color.FromArgb(10, 10, 10) : Theme.TEXT_SEC,
-                Font      = new Font("Segoe UI", 9f),
+                ForeColor = active ? Theme.ACCENT_TEXT : Theme.TEXT_DIM,
+                Font      = new Font("Courier New", 8f, active ? FontStyle.Bold : FontStyle.Regular),
                 Cursor    = Cursors.Hand,
                 Tag       = cat
             };
             btn.FlatAppearance.BorderSize           = 0;
             btn.FlatAppearance.MouseOverBackColor   = active
                 ? Theme.ACCENT_HOV
-                : Color.FromArgb(28, 28, 28);
+                : Color.FromArgb(26, 24, 53);  // website --surface2
 
             // Badge paint — draws a small pill with selection count on the right
             btn.Paint += (s, e) =>
@@ -705,10 +715,10 @@ namespace Win11Optimizer
                 string badge = selCount.ToString();
                 bool   isActive = cat == _activeCategory;
                 Color  pillBg   = isActive
-                    ? Color.FromArgb(204, 255, 0)        // solid lime on active
+                    ? Theme.ACCENT
                     : Color.FromArgb(50, Theme.ACCENT.R, Theme.ACCENT.G, Theme.ACCENT.B);
                 Color  pillFg   = isActive
-                    ? Color.FromArgb(10, 10, 10)         // black text on lime
+                    ? Theme.ACCENT_TEXT
                     : Theme.ACCENT;
 
                 using var badgeFont = new Font("Segoe UI", 7.5f, FontStyle.Bold);
@@ -749,17 +759,16 @@ namespace Win11Optimizer
                 {
                     bool active = cat == _activeCategory;
                     btn.BackColor = active ? Theme.ACCENT : Color.Transparent;
-                    btn.ForeColor = active ? Color.FromArgb(10, 10, 10) : Theme.TEXT_SEC;
+                    btn.ForeColor = active ? Theme.ACCENT_TEXT : Theme.TEXT_DIM;
+                    btn.Font      = new Font("Courier New", 8f, active ? FontStyle.Bold : FontStyle.Regular);
                     btn.FlatAppearance.MouseOverBackColor = active
                         ? Theme.ACCENT_HOV
-                        : Color.FromArgb(28, 28, 28);
+                        : Color.FromArgb(26, 24, 53);
                 }
             }
         }
 
-        //  MAIN AREA -- contains the search bar, the grid of tweak tiles and the history panel (which is hidden when not in use)
-
-        private void BuildMainArea()
+private void BuildMainArea()
         {
             _mainArea = new Panel { BackColor = Theme.BG };
 
@@ -771,7 +780,7 @@ namespace Win11Optimizer
                 WrapContents  = true,
                 FlowDirection = FlowDirection.LeftToRight,
                 BackColor     = Theme.BG,
-                Padding       = new Padding(10),
+                Padding       = new Padding(12),
                 Dock          = DockStyle.Fill,
             };
             _tileGrid.HorizontalScroll.Enabled = false;
@@ -781,7 +790,7 @@ namespace Win11Optimizer
             {
                 AutoScroll = true,
                 BackColor  = Theme.BG,
-                Padding    = new Padding(16),
+                Padding    = new Padding(20),
                 Dock       = DockStyle.Fill,
                 Visible    = false
             };
@@ -794,14 +803,12 @@ namespace Win11Optimizer
             _mainArea.Controls.Add(_searchBar); // add last so it docks on top
         }
 
-        //  SEARCH BAR -- contains the search box, clear button and preset buttons. Also handles search input and filtering the grid
-
-        private void BuildSearchBar()
+private void BuildSearchBar()
         {
             _searchBar = new Panel
             {
                 BackColor = Theme.SURFACE,
-                Height    = 54,
+                Height    = 56,
                 Dock      = DockStyle.Top,
                 Padding   = new Padding(10, 8, 10, 8)
             };
@@ -812,7 +819,6 @@ namespace Win11Optimizer
                     _searchBar.Width, _searchBar.Height - 1);
             };
 
-            // ── Search icon label ──────────────────────────────────────────
             var searchIcon = new Label
             {
                 Text      = "🔍",
@@ -824,14 +830,13 @@ namespace Win11Optimizer
                 TextAlign = ContentAlignment.MiddleCenter
             };
 
-            // ── Search text box ────────────────────────────────────────────
             _searchBox = new TextBox
             {
                 Font        = new Font("Segoe UI", 10f),
                 ForeColor   = Theme.TEXT_PRI,
-                BackColor   = Theme.SURFACE2,
+                BackColor   = Theme.CARD,
                 BorderStyle = BorderStyle.None,
-                Location    = new Point(42, 14),
+                Location    = new Point(42, 16),
                 Height      = 26,
                 Width       = 260,
                 Text        = "Search tweaks..."
@@ -867,7 +872,6 @@ namespace Win11Optimizer
                 ApplySearchFilter();
             };
 
-            // ── Clear search button ────────────────────────────────────────
             _clearSearchBtn = new FlatButton("✕", Theme.SURFACE2)
             {
                 Size     = new Size(22, 22),
@@ -878,7 +882,6 @@ namespace Win11Optimizer
             };
             _clearSearchBtn.Click += (s, e) => ClearSearch();
 
-            // ── Divider ────────────────────────────────────────────────────
             var divider = new Panel
             {
                 BackColor = Theme.BORDER,
@@ -886,18 +889,16 @@ namespace Win11Optimizer
                 Location  = new Point(338, 10)
             };
 
-            // ── Preset label — sits above the button row ───────────────────
             var presetLbl = new Label
             {
                 Text      = "PRESETS",
-                Font      = new Font("Segoe UI", 7f, FontStyle.Bold),
-                ForeColor = Theme.TEXT_SEC,
+                Font      = new Font("Courier New", 6.5f, FontStyle.Bold),
+                ForeColor = Theme.ACCENT,
                 AutoSize  = true,
                 Location  = new Point(352, 5),
                 BackColor = Color.Transparent
             };
 
-            // ── Preset buttons — lime/dark scheme, Nuclear stays red ──────
             // Shared style helper
             static void StylePreset(FlatButton b) {
                 b.FlatAppearance.BorderSize  = 1;
@@ -976,9 +977,7 @@ namespace Win11Optimizer
             });
         }
 
-        //  SEARCH LOGIC -- filters the visible tiles in the grid based on the search query, matching against the tweak's name, description and category. Also hides section headers that have no visible tiles.
-
-        private void ApplySearchFilter()
+private void ApplySearchFilter()
         {
             if (string.IsNullOrEmpty(_searchQuery))
             {
@@ -1035,9 +1034,7 @@ namespace Win11Optimizer
             UpdateSelCount();
         }
 
-        //  PRESETS -- each preset applies a specific combination of tweaks by checking/unchecking tiles in the grid. Presets do not filter the grid or change categories, so they can be applied on top of any search or category view. Applying a preset while on the History tab will switch to All first since History doesn't support checkboxes.
-
-        private void ApplyPreset(string preset)
+private void ApplyPreset(string preset)
         {
             // If we're on History, switch to All first
             if (_activeCategory == "History" || _activeCategory == "Startup")
@@ -1108,9 +1105,7 @@ namespace Win11Optimizer
             UpdateSelCount();
         }
 
-        //  GRID POPULATION -- builds the grid of tweak tiles based on the selected category, applying the search filter if there's an active search query. Also handles wiring up the CheckedChanged event for each tile to update the selected count and status, and the MouseEnter/Leave events to show/hide the tooltip.
-
-        private static readonly string[] CategoryOrder =
+private static readonly string[] CategoryOrder =
         {
             "Performance", "Privacy", "Responsiveness",
             "Gaming", "Network", "Bloatware", "Security", "Advanced"
@@ -1195,9 +1190,7 @@ namespace Win11Optimizer
             }
         }
 
-        //  HISTORY -- builds a vertical list of past runs with details on how many tweaks were applied, how many succeeded/failed, which categories were affected, and any custom details logged by the tweak actions. Also includes a "Clear History" button that wipes all entries after confirmation.
-
-        private void ShowHistory()
+private void ShowHistory()
         {
             _tileGrid.Visible   = false;
             _searchBar.Visible  = false;
@@ -1322,11 +1315,9 @@ namespace Win11Optimizer
             }
         }
 
-        //  BOTTOM BAR -- contains the status label, selected count, progress bar and action buttons. Also handles the logic for enabling/disabling the Run and Undo buttons based on selection and backup availability
-
-        private void BuildBottomBar()
+private void BuildBottomBar()
         {
-            _bottomBar = new Panel { BackColor = Theme.SURFACE, Height = 130 };
+            _bottomBar = new Panel { BackColor = Theme.SURFACE, Height = 136 };
             _bottomBar.Paint += (s, e) =>
             {
                 using var p = new Pen(Theme.BORDER);
@@ -1350,7 +1341,7 @@ namespace Win11Optimizer
             _statusLabel = new Label
             {
                 Text      = "Ready",
-                ForeColor = Theme.TEXT_SEC,
+                ForeColor = Theme.TEXT_DIM,
                 AutoSize  = true,
                 Location  = new Point(16, 24)
             };
@@ -1358,7 +1349,7 @@ namespace Win11Optimizer
             _selCountLabel = new Label
             {
                 Text      = "No tweaks selected",
-                ForeColor = Theme.TEXT_SEC,
+                ForeColor = Theme.TEXT_DIM,
                 AutoSize  = true,
                 Location  = new Point(16, 46)
             };
@@ -1366,11 +1357,11 @@ namespace Win11Optimizer
             _restoreChk = new CheckBox
             {
                 Text      = "🛡 Create Restore Point before running",
-                ForeColor = Theme.TEXT_SEC,
+                ForeColor = Theme.TEXT_DIM,
                 BackColor = Color.Transparent,
                 Checked   = true,
                 AutoSize  = true,
-                Location  = new Point(16, 86),
+                Location  = new Point(16, 92),
                 FlatStyle = FlatStyle.Flat
             };
             _restoreChk.FlatAppearance.BorderColor        = Theme.BORDER;
@@ -1391,7 +1382,7 @@ namespace Win11Optimizer
             _runBtn = new FlatButton("⚡  RUN SELECTED", Theme.ACCENT)
             {
                 Size      = new Size(165, 36),
-                Font      = new Font("Arial Black", 8.5f),
+                Font      = new Font("Courier New", 8.5f, FontStyle.Bold),
                 ForeColor = Theme.ACCENT_TEXT
             };
             _runBtn.Click += OnRunClicked;
@@ -1418,14 +1409,12 @@ namespace Win11Optimizer
             });
         }
 
-        //  LOG PANEL -- a collapsible panel that shows a scrollable log of output messages from the tweak actions. Each message is timestamped and color-coded based on success/failure. The panel can be toggled with the "Log" button in the bottom bar and is hidden by default.
-
-        private void BuildLogPanel()
+private void BuildLogPanel()
         {
             _logBox = new RichTextBox
             {
-                BackColor   = Color.FromArgb(10, 10, 14),
-                ForeColor   = Color.FromArgb(100, 220, 100),
+                BackColor   = Color.FromArgb(8, 8, 20),
+                ForeColor   = Color.FromArgb(180, 200, 255),
                 BorderStyle = BorderStyle.None,
                 ReadOnly    = true,
                 Font        = new Font("Consolas", 8.5f),
@@ -1435,7 +1424,7 @@ namespace Win11Optimizer
 
             _logPanel = new Panel
             {
-                BackColor = Color.FromArgb(10, 10, 14),
+                BackColor = Color.FromArgb(8, 8, 20),
                 Visible   = false,
                 Height    = 180
             };
@@ -1470,9 +1459,7 @@ namespace Win11Optimizer
             LayoutAll();
         }
 
-        //  HOVER TOOLTIP -- a custom tooltip panel that appears when hovering over a tweak tile, showing the tweak's name and a description of what it changes. The tooltip positions itself intelligently to avoid going off-screen and has a small delay before hiding to allow moving between tiles without flickering.
-
-        private void BuildTooltip()
+private void BuildTooltip()
         {
             _ttTitle = new Label
             {
@@ -1496,18 +1483,17 @@ namespace Win11Optimizer
 
             _tooltip = new Panel
             {
-                BackColor = Color.FromArgb(18, 18, 26),
+                BackColor = Color.FromArgb(13, 12, 28),
                 Size      = new Size(300, 0),   // height set dynamically
                 Visible   = false,
                 Padding   = new Padding(12)
             };
             _tooltip.Paint += (s, e) =>
             {
-                using var pen = new Pen(Theme.ACCENT, 1f);
+                using var pen = new Pen(Color.FromArgb(80, Theme.ACCENT.R, Theme.ACCENT.G, Theme.ACCENT.B), 1f);
                 e.Graphics.DrawRectangle(pen, 0, 0, _tooltip.Width - 1, _tooltip.Height - 1);
-                // Accent left bar
                 using var bar = new SolidBrush(Theme.ACCENT);
-                e.Graphics.FillRectangle(bar, 1, 1, 3, _tooltip.Height);
+                e.Graphics.FillRectangle(bar, 0, 0, 3, _tooltip.Height);
             };
             _tooltip.Controls.Add(_ttTitle);
             _tooltip.Controls.Add(_ttWhat);
@@ -1570,9 +1556,7 @@ namespace Win11Optimizer
 
         private void HideTooltip() => _ttHideTimer.Start();
 
-        //  RUN -- self explanitory
-
-        private async void OnRunClicked(object sender, EventArgs e)
+private async void OnRunClicked(object sender, EventArgs e)
         {
             if (_isRunning) return;
 
@@ -1699,9 +1683,7 @@ namespace Win11Optimizer
             PromptReboot();
         }
 
-        //  UNDO -- self explanitory
-
-        private async void OnUndoClicked(object sender, EventArgs e)
+private async void OnUndoClicked(object sender, EventArgs e)
         {
             var undoCats = _tiles
                 .Where(t => t.IsChecked && TweakEngine.HasBackup(t.Entry.Category))
@@ -1739,9 +1721,7 @@ namespace Win11Optimizer
             UpdateSelCount();
         }
 
-        //  HELPERS -- status updates, progress bar, log appending, reboot prompt
-
-        private void SetStatus(string msg, Color col = default)
+private void SetStatus(string msg, Color col = default)
         {
             if (InvokeRequired) { Invoke(new Action(() => SetStatus(msg, col))); return; }
             _statusLabel.Text      = msg;
@@ -1778,7 +1758,6 @@ namespace Win11Optimizer
 
     public enum TileStatus { None, Running, Done }
 
-    //  TWEAK TILE -- represents a single tweak as a clickable tile in the grid, showing its name, description and an icon. It has three states: unchecked (not selected), checked (selected for running), and applied (already run in the past). The tile's appearance changes based on these states, and it raises a CheckedChanged event when toggled.
     public class TweakTile : Panel
     {
         private bool       _checked;
@@ -1796,7 +1775,8 @@ namespace Win11Optimizer
             set
             {
                 _checked  = value;
-                BackColor = value ? Color.FromArgb(22, 22, 18) : Theme.SURFACE;  // very subtle warm tint when checked
+                // Subtle gold-tinted warm surface when selected — matches website featured card
+                BackColor = value ? Color.FromArgb(22, 19, 38) : Theme.CARD;
                 Invalidate();
                 CheckedChanged?.Invoke(this, EventArgs.Empty);
             }
@@ -1820,7 +1800,7 @@ namespace Win11Optimizer
         {
             Entry     = entry;
             Size      = new Size(230, 130);
-            BackColor = Theme.SURFACE;
+            BackColor = Theme.CARD;
             Margin    = new Padding(5);
             Cursor    = Cursors.Hand;
 
@@ -1831,7 +1811,7 @@ namespace Win11Optimizer
                 var g = e.Graphics;
                 g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
 
-                using var borderPen = new Pen(_checked ? Color.FromArgb(100, accent.R, accent.G, accent.B) : Theme.BORDER, 1f);
+                using var borderPen = new Pen(_checked ? Color.FromArgb(120, accent.R, accent.G, accent.B) : Theme.BORDER, 1f);
                 g.DrawRectangle(borderPen, 0, 0, Width - 1, Height - 1);
 
                 using var accentBr = new SolidBrush(_checked ? accent : Color.FromArgb(60, accent.R, accent.G, accent.B));
@@ -1839,9 +1819,9 @@ namespace Win11Optimizer
 
                 if (_checked)
                 {
-                    // Subtle filled circle indicator — lime dot, not a full box
+                    // Checkmark indicator — gold filled circle with dark check
                     g.FillEllipse(accentBr, Width - 20, 8, 12, 12);
-                    using var wp = new Pen(Color.FromArgb(10, 10, 10), 1.5f);
+                    using var wp = new Pen(Theme.ACCENT_TEXT, 1.5f);
                     g.DrawLines(wp, new[]
                     {
                         new Point(Width - 18, 14),
@@ -1854,7 +1834,7 @@ namespace Win11Optimizer
                 if (_applied && _status == TileStatus.None)
                 {
                     using var dotBr  = new SolidBrush(Theme.SUCCESS);
-                    using var txtFnt = new Font("Segoe UI", 7f);
+                    using var txtFnt = new Font("Courier New", 6.5f);
                     using var txtBr  = new SolidBrush(Color.FromArgb(80, Theme.SUCCESS.R, Theme.SUCCESS.G, Theme.SUCCESS.B));
                     g.FillEllipse(dotBr, 10, Height - 16, 6, 6);
                     g.DrawString("applied", txtFnt, txtBr, new PointF(20, Height - 18));
@@ -1862,7 +1842,7 @@ namespace Win11Optimizer
 
                 if (!string.IsNullOrEmpty(_statusText))
                 {
-                    using var sf = new Font("Segoe UI", 7.5f);
+                    using var sf = new Font("Courier New", 7f);
                     using var sb = new SolidBrush(_statusColor);
                     g.DrawString(_statusText, sf, sb, new PointF(12, Height - 18));
                 }
@@ -1882,7 +1862,7 @@ namespace Win11Optimizer
             var nameLbl = new Label
             {
                 Text         = entry.Name,
-                Font         = new Font("Arial Black", 8f),
+                Font         = new Font("Courier New", 7.5f, FontStyle.Bold),
                 ForeColor    = Theme.TEXT_PRI,
                 AutoSize     = false,
                 Size         = new Size(170, 40),
@@ -1896,7 +1876,7 @@ namespace Win11Optimizer
             {
                 Text      = entry.Description,
                 Font      = new Font("Segoe UI", 7.5f),
-                ForeColor = Theme.TEXT_SEC,
+                ForeColor = Theme.TEXT_DIM,
                 AutoSize  = false,
                 Size      = new Size(218, 38),
                 Location  = new Point(10, 74),
@@ -1925,8 +1905,8 @@ namespace Win11Optimizer
             descLbl.Click  += Toggle;
             catBadge.Click += Toggle;
 
-            MouseEnter += (s, ev) => { if (!_checked) BackColor = Color.FromArgb(28, 28, 28); };
-            MouseLeave += (s, ev) => { if (!_checked) BackColor = Theme.SURFACE; };
+            MouseEnter += (s, ev) => { if (!_checked) BackColor = Theme.SURFACE; };
+            MouseLeave += (s, ev) => { if (!_checked) BackColor = Theme.CARD; };
         }
 
         public void SetApplied(bool applied)
@@ -1956,9 +1936,7 @@ namespace Win11Optimizer
         }
     }
 
-    //  SECTION HEADER -- a non-interactive header panel used to separate different categories of tweaks in the grid. It displays the category name with a colored accent bar on the left and an emoji. The header also draws a horizontal divider line at the bottom and resizes itself to fit the width of the parent container.
-
-    public class SectionHeader : Panel
+public class SectionHeader : Panel
     {
         private static int _sectionIndex = 0;
         public static void ResetIndex() => _sectionIndex = 0;
@@ -1976,7 +1954,7 @@ namespace Win11Optimizer
             var indexLbl = new Label
             {
                 Text      = $"{index} — {title.ToUpper()}",
-                Font      = new Font("Courier New", 7.5f, FontStyle.Bold),
+                Font      = new Font("Courier New", 7f, FontStyle.Bold),
                 ForeColor = Theme.ACCENT,
                 AutoSize  = true,
                 Location  = new Point(6, 8),
@@ -1986,7 +1964,7 @@ namespace Win11Optimizer
             var nameLbl = new Label
             {
                 Text      = $"{emoji}  {title}",
-                Font      = new Font("Arial Black", 10f),
+                Font      = new Font("Courier New", 9f, FontStyle.Bold),
                 ForeColor = Theme.TEXT_PRI,
                 AutoSize  = true,
                 Location  = new Point(4, 24),
@@ -2062,9 +2040,7 @@ namespace Win11Optimizer
         }
     }
 
-    //  GRAPHICS EXTENSION -- a helper method to draw filled rectangles with rounded corners, used for the progress bar and other UI elements. It takes a brush, rectangle dimensions and a corner radius, and constructs a GraphicsPath to fill the shape with anti-aliasing.
-
-    internal static class GraphicsEx
+internal static class GraphicsEx
     {
         public static void FillRoundedRect(this System.Drawing.Graphics g,
             System.Drawing.Brush brush, int x, int y, int w, int h, int r)

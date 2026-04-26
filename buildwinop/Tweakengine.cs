@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
@@ -13,13 +12,12 @@ namespace Win11Optimizer
 {
     public static class TweakEngine
     {
-        // ── P/INVOKE ──────────────────────────────────────────────────────
         [DllImport("winmm.dll", EntryPoint = "timeBeginPeriod")]
         private static extern uint TimeBeginPeriod(uint uPeriod);
         [DllImport("winmm.dll", EntryPoint = "timeEndPeriod")]
         private static extern uint TimeEndPeriod(uint uPeriod);
 
-        // ── RESULT TRACKING ───────────────────────────────────────────────
+        // ── RESULTS ───────────────────────────────────────────────────────
         public class TweakResult
         {
             public string Name    { get; set; } = string.Empty;
@@ -42,15 +40,14 @@ namespace Win11Optimizer
             public bool   Existed   { get; set; }
         }
 
-        private static readonly List<BackupEntry>  _backups = new();
-        private static readonly HashSet<string>    _appliedCategories = new(StringComparer.OrdinalIgnoreCase);
-        private static readonly string             BackupFile =
+        private static readonly List<BackupEntry> _backups = new();
+        private static readonly HashSet<string>   _appliedCategories = new(StringComparer.OrdinalIgnoreCase);
+        private static readonly string            BackupFile =
             Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "tweaks_backup.json");
 
         public static IReadOnlyCollection<string> AppliedCategories => _appliedCategories;
         public static bool HasBackup(string category) => _appliedCategories.Contains(category);
 
-        // ── ROOT KEY RESOLVER ─────────────────────────────────────────────
         private static RegistryKey RootKey(string hive) => hive switch
         {
             "HKEY_LOCAL_MACHINE" => Registry.LocalMachine,
@@ -66,7 +63,6 @@ namespace Win11Optimizer
             return (RootKey(parts[0]), parts[1]);
         }
 
-        // ── BACKUP ────────────────────────────────────────────────────────
         private static void BackupRegistry(string category, string keyPath, string valueName)
         {
             try
@@ -78,28 +74,25 @@ namespace Win11Optimizer
                 if (key != null) kind = key.GetValueKind(valueName);
                 _backups.Add(new BackupEntry
                 {
-                    Category  = category, KeyPath   = keyPath, ValueName = valueName,
-                    ValueData = current?.ToString() ?? "", ValueKind = kind.ToString(),
-                    Existed   = current != null
+                    Category = category, KeyPath = keyPath, ValueName = valueName,
+                    ValueData = current?.ToString() ?? "", ValueKind = kind.ToString(), Existed = current != null
                 });
             }
             catch
             {
                 _backups.Add(new BackupEntry
                 {
-                    Category  = category, KeyPath   = keyPath, ValueName = valueName,
-                    ValueData = "", ValueKind = RegistryValueKind.Unknown.ToString(),
-                    Existed   = false
+                    Category = category, KeyPath = keyPath, ValueName = valueName,
+                    ValueData = "", ValueKind = RegistryValueKind.Unknown.ToString(), Existed = false
                 });
             }
         }
 
-        // ── SAVE / LOAD BACKUPS ───────────────────────────────────────────
         public static void SaveBackups()
         {
             try { File.WriteAllText(BackupFile, JsonSerializer.Serialize(_backups,
                 new JsonSerializerOptions { WriteIndented = true })); }
-            catch (Exception ex) { Debug.WriteLine($"[BACKUP SAVE FAIL] {ex.Message}"); }
+            catch (Exception ex) { Debug.WriteLine($"[BACKUP SAVE] {ex.Message}"); }
         }
 
         public static void LoadBackups()
@@ -112,10 +105,9 @@ namespace Win11Optimizer
                 _backups.Clear(); _backups.AddRange(loaded);
                 foreach (var b in _backups) _appliedCategories.Add(b.Category);
             }
-            catch (Exception ex) { Debug.WriteLine($"[BACKUP LOAD FAIL] {ex.Message}"); }
+            catch (Exception ex) { Debug.WriteLine($"[BACKUP LOAD] {ex.Message}"); }
         }
 
-        // ── RESTORE CATEGORY ─────────────────────────────────────────────
         public static List<TweakResult> RestoreCategory(string category)
         {
             var res      = new List<TweakResult>();
@@ -148,8 +140,7 @@ namespace Win11Optimizer
                 }
                 catch (Exception ex)
                 {
-                    res.Add(new TweakResult
-                        { Name = $"Restore {entry.ValueName}", Success = false, Error = ex.Message });
+                    res.Add(new TweakResult { Name = $"Restore {entry.ValueName}", Success = false, Error = ex.Message });
                 }
             }
 
@@ -176,7 +167,6 @@ namespace Win11Optimizer
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[REG FAIL] {name}: {ex.Message}");
                 _results.Add(new TweakResult { Name = name, Success = false, Error = ex.Message });
             }
         }
@@ -196,7 +186,6 @@ namespace Win11Optimizer
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[CMD FAIL] {name}: {ex.Message}");
                 _results.Add(new TweakResult { Name = name, Success = false, Error = ex.Message });
             }
         }
@@ -218,163 +207,112 @@ namespace Win11Optimizer
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[PS FAIL] {name}: {ex.Message}");
                 _results.Add(new TweakResult { Name = name, Success = false, Error = ex.Message });
             }
         }
 
         private static void EnsureRegistryKey(string keyPath)
         {
-            try
-            {
-                var (root, sub) = SplitPath(keyPath);
-                root?.CreateSubKey(sub, writable: true);
-            }
+            try { var (root, sub) = SplitPath(keyPath); root?.CreateSubKey(sub, writable: true); }
             catch { }
         }
 
         private static void DisableService(string s)
-            => RunCommand($"sc config {s} start=disabled & net stop {s} 2>nul", $"Disable service: {s}");
+            => RunCommand($"sc config {s} start=disabled & net stop {s} 2>nul", $"Disable: {s}");
         private static void EnableService(string s)
-            => RunCommand($"sc config {s} start=auto & net start {s} 2>nul", $"Re-enable service: {s}");
-        private static void DisableScheduledTask(string t)
+            => RunCommand($"sc config {s} start=auto & net start {s} 2>nul", $"Re-enable: {s}");
+        private static void DisableTask(string t)
             => RunCommand($"schtasks /Change /TN \"{t}\" /Disable 2>nul", $"Disable task: {t}");
-        private static void EnableScheduledTask(string t)
+        private static void EnableTask(string t)
             => RunCommand($"schtasks /Change /TN \"{t}\" /Enable 2>nul", $"Re-enable task: {t}");
 
-        private static void RunCategory(string category, Action tweaks)
+        private static void Dispatch(string category, Action action)
         {
-            _currentCategory = _appliedCategories.Contains(category) ? "" : category;
-            tweaks();
+            _currentCategory = category;
+            action();
             _currentCategory = "";
             _appliedCategories.Add(category);
             SaveBackups();
         }
 
-        // ── 1. PERFORMANCE ────────────────────────────────────────────────
-        public static void ApplyPerformanceTweaks() => RunCategory("Performance", () =>
+        private static string CategoryForKey(string key)
         {
-            RunCommand("powercfg -setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c", "High Performance power plan");
-            SetRegistry(@"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power\PowerThrottling",
-                "PowerThrottlingOff", 1, RegistryValueKind.DWord, "Disable Power Throttling");
-            DisableService("SysMain");
-            DisableService("WSearch");
-            SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Serialize",
-                "StartupDelayInMSec", 0, RegistryValueKind.DWord, "Remove startup delay");
-            SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects",
-                "VisualFXSetting", 2, RegistryValueKind.DWord, "Visual effects: best performance");
-            RunCommand("fsutil behavior set disablelastaccess 1", "Disable NTFS last-access updates");
-            RunCommand("fsutil behavior set disable8dot3 1",      "Disable 8.3 filenames");
-            RunCommand("powercfg -h off", "Disable hibernation");
-            RunPowerShell("Disable-MMAgent -MemoryCompression", "Disable memory compression");
-            try
-            {
-                TimeBeginPeriod(1);
-                _results.Add(new TweakResult { Name = "Set timer resolution to 0.5ms (timeBeginPeriod)", Success = true });
-            }
-            catch (Exception ex)
-            {
-                _results.Add(new TweakResult { Name = "Set timer resolution", Success = false, Error = ex.Message });
-            }
-            EnsureRegistryKey(@"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\kernel");
-            SetRegistry(@"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\kernel",
-                "GlobalTimerResolutionRequests", 1, RegistryValueKind.DWord, "Persist high-res timer");
-        });
+            if (key.StartsWith("Perf_"))  return "Performance";
+            if (key.StartsWith("Priv_"))  return "Privacy";
+            if (key.StartsWith("Resp_"))  return "Responsiveness";
+            if (key.StartsWith("Game_"))  return "Gaming";
+            if (key.StartsWith("Net_"))   return "Network";
+            if (key.StartsWith("Bloat_")) return "Bloatware";
+            if (key.StartsWith("Sec_"))   return "Security";
+            if (key.StartsWith("Adv_"))   return "Advanced";
+            return "";
+        }
 
+        // ── UNDO (called by MainForm) ─────────────────────────────────────
         public static List<TweakResult> UndoPerformanceTweaks()
         {
             var r = RestoreCategory("Performance");
             RunCommand("powercfg -setactive 381b4222-f694-41f0-9685-ff5bb260df2e", "Restore Balanced power plan");
-            EnableService("SysMain");
-            EnableService("WSearch");
-            RunCommand("fsutil behavior set disablelastaccess 0", "Re-enable NTFS last-access updates");
+            EnableService("SysMain"); EnableService("WSearch");
+            RunCommand("fsutil behavior set disablelastaccess 0", "Re-enable NTFS last-access");
             RunCommand("powercfg -h on", "Re-enable hibernation");
             RunPowerShell("Enable-MMAgent -MemoryCompression", "Re-enable memory compression");
             try { TimeEndPeriod(1); } catch { }
             return r;
         }
 
-        // ── 2. PRIVACY ────────────────────────────────────────────────────
-        // Telemetry scheduled tasks disabled as a group
-        private static readonly string[] TelemetryTasks =
-        {
-            @"\Microsoft\Windows\Application Experience\Microsoft Compatibility Appraiser",
-            @"\Microsoft\Windows\Application Experience\ProgramDataUpdater",
-            @"\Microsoft\Windows\Autochk\Proxy",
-            @"\Microsoft\Windows\Customer Experience Improvement Program\Consolidator",
-            @"\Microsoft\Windows\Customer Experience Improvement Program\UsbCeip",
-            @"\Microsoft\Windows\DiskDiagnostic\Microsoft-Windows-DiskDiagnosticDataCollector",
-        };
-
-        public static void ApplyPrivacyTweaks() => RunCategory("Privacy", () =>
-        {
-            SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\DataCollection",
-                "AllowTelemetry", 0, RegistryValueKind.DWord, "Disable telemetry");
-            SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection",
-                "AllowTelemetry", 0, RegistryValueKind.DWord, "Disable telemetry (legacy key)");
-            foreach (var svc in new[] { "DiagTrack", "dmwappushservice", "RetailDemo", "WerSvc" })
-                DisableService(svc);
-            foreach (var t in TelemetryTasks) DisableScheduledTask(t);
-            SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo",
-                "Enabled", 0, RegistryValueKind.DWord, "Disable Advertising ID");
-            SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo",
-                "DisabledByGroupPolicy", 1, RegistryValueKind.DWord, "Disable Advertising ID (policy)");
-            SetRegistry(@"HKEY_CURRENT_USER\Software\Policies\Microsoft\Windows\Explorer",
-                "DisableSearchBoxSuggestions", 1, RegistryValueKind.DWord, "Disable Bing in Start");
-            SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",
-                "Start_TrackProgs", 0, RegistryValueKind.DWord, "Disable app launch tracking");
-            SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Search",
-                "BingSearchEnabled", 0, RegistryValueKind.DWord, "Disable Bing Search integration");
-            SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Search",
-                "CortanaConsent", 0, RegistryValueKind.DWord, "Disable Cortana consent");
-            SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\System",
-                "EnableActivityFeed", 0, RegistryValueKind.DWord, "Disable Activity Feed");
-            SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\System",
-                "PublishUserActivities", 0, RegistryValueKind.DWord, "Disable publishing user activities");
-            SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\System",
-                "UploadUserActivities", 0, RegistryValueKind.DWord, "Disable uploading user activities");
-            SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Siuf\Rules",
-                "NumberOfSIUFInPeriod", 0, RegistryValueKind.DWord, "Disable feedback requests");
-            SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LocationAndSensors",
-                "DisableLocation", 1, RegistryValueKind.DWord, "Disable location tracking");
-            SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy",
-                "LetAppsAccessCamera", 2, RegistryValueKind.DWord, "Block app camera access");
-            SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Windows Error Reporting",
-                "Disabled", 1, RegistryValueKind.DWord, "Disable Windows Error Reporting");
-            SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\System",
-                "EnableSmartScreen", 0, RegistryValueKind.DWord, "Disable SmartScreen (Explorer)");
-            EnsureRegistryKey(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced");
-            SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",
-                "TaskbarMn", 0, RegistryValueKind.DWord, "Disable Chat/Teams taskbar icon");
-            EnsureRegistryKey(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsAI");
-            SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsAI",
-                "DisableAIDataAnalysis", 1, RegistryValueKind.DWord, "Disable Windows Recall (AI screenshot)");
-            EnsureRegistryKey(@"HKEY_CURRENT_USER\Software\Policies\Microsoft\Windows\WindowsAI");
-            SetRegistry(@"HKEY_CURRENT_USER\Software\Policies\Microsoft\Windows\WindowsAI",
-                "DisableAIDataAnalysis", 1, RegistryValueKind.DWord, "Disable Windows Recall (user scope)");
-            ApplyHostsBlockList();
-        });
-
         public static List<TweakResult> UndoPrivacyTweaks()
         {
             var r = RestoreCategory("Privacy");
-            foreach (var svc in new[] { "DiagTrack", "WerSvc" }) EnableService(svc);
-            foreach (var t in new[] { TelemetryTasks[3], TelemetryTasks[4] }) EnableScheduledTask(t);
+            EnableService("DiagTrack"); EnableService("WerSvc");
+            EnableTask(@"\Microsoft\Windows\Customer Experience Improvement Program\Consolidator");
+            EnableTask(@"\Microsoft\Windows\Customer Experience Improvement Program\UsbCeip");
             RemoveHostsBlockList();
             return r;
         }
 
-        // ── HOSTS FILE BLOCK LIST ─────────────────────────────────────────
+        public static List<TweakResult> UndoResponsivenessTweaks()
+        {
+            var r = RestoreCategory("Responsiveness");
+            RunCommand("bcdedit /deletevalue useplatformtick 2>nul", "Restore platform tick default");
+            return r;
+        }
+
+        public static List<TweakResult> UndoGamingTweaks()
+        {
+            var r = RestoreCategory("Gaming");
+            EnableService("NvTelemetryContainer"); EnableService("NvDisplayContainerLS");
+            return r;
+        }
+
+        public static List<TweakResult> UndoNetworkTweaks()
+        {
+            var r = RestoreCategory("Network");
+            RestoreNaglesAlgorithm();
+            RunCommand("netsh int tcp set global autotuninglevel=normal", "Restore TCP auto-tuning");
+            return r;
+        }
+
+        public static List<TweakResult> UndoAdvancedTweaks()
+        {
+            var r = RestoreCategory("Advanced");
+            RunCommand("bcdedit /deletevalue disabledynamictick 2>nul", "Restore dynamic tick default");
+            return r;
+        }
+
+        public static List<TweakResult> UndoSecurityTweaks() => RestoreCategory("Security");
+
+        // ── HOSTS BLOCK LIST ──────────────────────────────────────────────
         private static readonly string[] TelemetryHosts =
         {
-            "vortex.data.microsoft.com",          "vortex-win.data.microsoft.com",
+            "vortex.data.microsoft.com",           "vortex-win.data.microsoft.com",
             "telecommand.telemetry.microsoft.com", "telecommand.telemetry.microsoft.com.nsatc.net",
             "oca.telemetry.microsoft.com",         "oca.telemetry.microsoft.com.nsatc.net",
             "sqm.telemetry.microsoft.com",         "sqm.telemetry.microsoft.com.nsatc.net",
             "watson.telemetry.microsoft.com",      "watson.telemetry.microsoft.com.nsatc.net",
             "redir.metaservices.microsoft.com",    "choice.microsoft.com",
             "choice.microsoft.com.nsatc.net",      "df.telemetry.microsoft.com",
-            "reports.wes.df.telemetry.microsoft.com", "wes.df.telemetry.microsoft.com",
+            "reports.wes.df.telemetry.microsoft.com","wes.df.telemetry.microsoft.com",
             "services.wes.df.telemetry.microsoft.com","sqm.df.telemetry.microsoft.com",
             "telemetry.microsoft.com",             "watson.ppe.telemetry.microsoft.com",
             "settings-win.data.microsoft.com",     "telemetry.appex.bing.net",
@@ -389,7 +327,6 @@ namespace Win11Optimizer
 
         private const string HostsMarkerStart = "# WIN11OPTIMIZER_TELEMETRY_BLOCK_START";
         private const string HostsMarkerEnd   = "# WIN11OPTIMIZER_TELEMETRY_BLOCK_END";
-
         private static string HostsPath => Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.System), @"drivers\etc\hosts");
 
@@ -408,8 +345,7 @@ namespace Win11Optimizer
                 foreach (var host in TelemetryHosts) sb.AppendLine($"0.0.0.0 {host}");
                 sb.AppendLine(HostsMarkerEnd);
                 File.AppendAllText(HostsPath, sb.ToString());
-                _results.Add(new TweakResult
-                    { Name = $"Block {TelemetryHosts.Length} telemetry domains in hosts file", Success = true });
+                _results.Add(new TweakResult { Name = $"Blocked {TelemetryHosts.Length} telemetry domains", Success = true });
             }
             catch (Exception ex)
             {
@@ -430,233 +366,6 @@ namespace Win11Optimizer
             }
             catch (Exception ex) { Debug.WriteLine($"[HOSTS RESTORE] {ex.Message}"); }
         }
-
-        // ── 3. RESPONSIVENESS ─────────────────────────────────────────────
-        public static void ApplySystemResponsiveness() => RunCategory("Responsiveness", () =>
-        {
-            SetRegistry(@"HKEY_CURRENT_USER\Control Panel\Desktop", "MenuShowDelay",        "0",    RegistryValueKind.String, "Instant menu show");
-            SetRegistry(@"HKEY_CURRENT_USER\Control Panel\Desktop", "WaitToKillAppTimeout", "2000", RegistryValueKind.String, "Fast app kill timeout");
-            SetRegistry(@"HKEY_CURRENT_USER\Control Panel\Desktop", "HungAppTimeout",       "1000", RegistryValueKind.String, "Fast hung app timeout");
-            SetRegistry(@"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control",
-                "WaitToKillServiceTimeout", "2000", RegistryValueKind.String, "Fast service kill timeout");
-            SetRegistry(@"HKEY_CURRENT_USER\Control Panel\Desktop", "AutoEndTasks", "1", RegistryValueKind.String, "Auto end tasks on shutdown");
-            RunCommand("bcdedit /set useplatformtick yes",              "Platform tick (high-res timer)");
-            RunCommand("bcdedit /deletevalue useplatformclock 2>nul",   "Remove platform clock override");
-            SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager",
-                "SoftLandingEnabled", 0, RegistryValueKind.DWord, "Disable Windows Tips");
-            SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager",
-                "SubscribedContent-338389Enabled", 0, RegistryValueKind.DWord, "Disable suggested content");
-        });
-
-        public static List<TweakResult> UndoResponsivenessTweaks()
-        {
-            var r = RestoreCategory("Responsiveness");
-            RunCommand("bcdedit /deletevalue useplatformtick 2>nul", "Restore platform tick default");
-            return r;
-        }
-
-        // ── 4. GAMING ─────────────────────────────────────────────────────
-        private const string GpuClassKey =
-            @"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}\0000";
-
-        private static readonly string[] NvidiaTelemetryTasks =
-        {
-            @"\NvTmRepOnLogon_{B2FE1952-0186-46C3-BAEC-A80AA35AC5B8}",
-            @"\NvTmRep_{B2FE1952-0186-46C3-BAEC-A80AA35AC5B8}",
-            @"\NvTmMon_{B2FE1952-0186-46C3-BAEC-A80AA35AC5B8}",
-        };
-
-        public static void ApplyGamingTweaks() => RunCategory("Gaming", () =>
-        {
-            SetRegistry(@"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\GraphicsDrivers",
-                "HwSchMode", 2, RegistryValueKind.DWord, "Enable HAGS");
-            SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\GameBar",
-                "AllowAutoGameMode", 1, RegistryValueKind.DWord, "Enable Game Mode");
-            SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\GameBar",
-                "AutoGameModeEnabled", 1, RegistryValueKind.DWord, "Enable Auto Game Mode");
-            SetRegistry(@"HKEY_CURRENT_USER\Control Panel\Mouse", "MouseSpeed",      "0", RegistryValueKind.String, "Disable mouse acceleration");
-            SetRegistry(@"HKEY_CURRENT_USER\Control Panel\Mouse", "MouseThreshold1", "0", RegistryValueKind.String, "Mouse threshold 1");
-            SetRegistry(@"HKEY_CURRENT_USER\Control Panel\Mouse", "MouseThreshold2", "0", RegistryValueKind.String, "Mouse threshold 2");
-            SetRegistry(@"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\PriorityControl",
-                "Win32PrioritySeparation", 38, RegistryValueKind.DWord, "CPU foreground priority boost");
-            SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\GameDVR",
-                "AppCaptureEnabled", 0, RegistryValueKind.DWord, "Disable Game DVR capture");
-            SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\GameDVR",
-                "AllowGameDVR", 0, RegistryValueKind.DWord, "Disable Game DVR (policy)");
-            SetRegistry(@"HKEY_CURRENT_USER\System\GameConfigStore",
-                "GameDVR_FSEBehaviorMode", 2, RegistryValueKind.DWord, "Disable FSO globally");
-            SetRegistry(@"HKEY_CURRENT_USER\System\GameConfigStore",
-                "GameDVR_HonorUserFSEBehaviorMode", 1, RegistryValueKind.DWord, "Honor FSO setting");
-            EnsureRegistryKey(GpuClassKey);
-            SetRegistry(GpuClassKey, "PerfLevelSrc", 0x3322, RegistryValueKind.DWord, "GPU power: Prefer Maximum Performance");
-            RunCommand("powercfg -setacvalueindex SCHEME_CURRENT SUB_VIDEO VIDEOIDLE 0 & powercfg -setactive SCHEME_CURRENT",
-                "GPU power policy: prevent idle");
-            foreach (var svc in new[] { "NvTelemetryContainer", "NvDisplayContainerLS" }) DisableService(svc);
-            foreach (var t in NvidiaTelemetryTasks) DisableScheduledTask(t);
-        });
-
-        public static List<TweakResult> UndoGamingTweaks()
-        {
-            var r = RestoreCategory("Gaming");
-            foreach (var svc in new[] { "NvTelemetryContainer", "NvDisplayContainerLS" }) EnableService(svc);
-            return r;
-        }
-
-        // ── 5. NETWORK ────────────────────────────────────────────────────
-        private const string MmProfile =
-            @"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile";
-        private const string DnsCacheParams =
-            @"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters";
-
-        public static void ApplyNetworkTweaks() => RunCategory("Network", () =>
-        {
-            DisableNaglesAlgorithm();
-            RunCommand("netsh int tcp set global rss=enabled",             "Enable RSS");
-            RunCommand("netsh int tcp set global autotuninglevel=normal",  "TCP auto-tuning: normal");
-            SetRegistry(MmProfile, "NetworkThrottlingIndex", unchecked((int)0xffffffff),
-                RegistryValueKind.DWord, "Disable network throttling");
-            SetRegistry(MmProfile, "SystemResponsiveness", 0,
-                RegistryValueKind.DWord, "Max multimedia responsiveness");
-            EnsureRegistryKey(DnsCacheParams);
-            SetRegistry(DnsCacheParams, "EnableAutoDoh", 2, RegistryValueKind.DWord, "Enable DoH");
-            const string doh11  = DnsCacheParams + @"\DohWellKnownServers\1.1.1.1";
-            const string doh10  = DnsCacheParams + @"\DohWellKnownServers\1.0.0.1";
-            const string dohUrl = "https://cloudflare-dns.com/dns-query";
-            EnsureRegistryKey(doh11);
-            SetRegistry(doh11, "DohFlags",   3,      RegistryValueKind.DWord,  "Register 1.1.1.1 as DoH server");
-            SetRegistry(doh11, "DohTemplate", dohUrl, RegistryValueKind.String, "Set Cloudflare DoH template");
-            EnsureRegistryKey(doh10);
-            SetRegistry(doh10, "DohFlags",   3,      RegistryValueKind.DWord,  "Register 1.0.0.1 as DoH server");
-            SetRegistry(doh10, "DohTemplate", dohUrl, RegistryValueKind.String, "Set Cloudflare DoH template (secondary)");
-            RunCommand("netsh dns set encryption preferred", "Prefer encrypted DNS");
-        });
-
-        public static List<TweakResult> UndoNetworkTweaks()
-        {
-            var r = RestoreCategory("Network");
-            RestoreNaglesAlgorithm();
-            RunCommand("netsh int tcp set global autotuninglevel=normal", "Restore TCP auto-tuning");
-            return r;
-        }
-
-        // ── 6. BLOATWARE ──────────────────────────────────────────────────
-        private static readonly HashSet<string> _safeList = new(StringComparer.OrdinalIgnoreCase)
-        {
-            "Microsoft.WindowsStore", "Microsoft.Windows.Photos", "Microsoft.WindowsCalculator",
-            "Microsoft.WindowsNotepad", "Microsoft.Paint", "Microsoft.ScreenSketch",
-            "Microsoft.WindowsTerminal"
-        };
-
-        public static void RemoveBloatware(Action<string> logCallback)
-        {
-            string[] patterns =
-            {
-                "*BingNews*","*BingWeather*","*BingSearch*","*ZuneVideo*","*ZuneMusic*",
-                "*SkypeApp*","*SolitaireCollection*","*GetStarted*","*FeedbackHub*",
-                "*WindowsMaps*","*YourPhone*","*PhoneLink*","*Clipchamp*","*MixedReality*",
-                "*PowerAutomateDesktop*","*LinkedIn*","*Disney*","*Spotify*","*TikTok*",
-                "*Instagram*","*Facebook*","*OfficeHub*","*OneNote*","*People*",
-                "*ToDos*","*Todos*","*Widgets*","*Xbox.TCUI*","*XboxApp*",
-                "*XboxGameOverlay*","*XboxGamingOverlay*","*XboxSpeechToTextOverlay*",
-                "*3DViewer*","*Print3D*","*Wallet*","*Advertising*"
-            };
-            foreach (string pattern in patterns)
-            {
-                if (_safeList.Any(s => pattern.Contains(s, StringComparison.OrdinalIgnoreCase))) continue;
-                string name = pattern.Replace("*", "").Trim();
-                logCallback?.Invoke($"Removing {name}...");
-                RunPowerShell($"Get-AppxPackage {pattern} | Remove-AppxPackage -ErrorAction SilentlyContinue",
-                    $"Remove (user) {name}");
-                RunPowerShell(
-                    $"Get-AppxProvisionedPackage -Online | Where-Object {{ $_.PackageName -like '{pattern}' }}" +
-                    $" | Remove-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue",
-                    $"Remove (provisioned) {name}");
-            }
-            logCallback?.Invoke("Bloatware removal complete.");
-        }
-
-        // ── 7. ADVANCED TWEAKS ────────────────────────────────────────────
-        public static void ApplyAdvancedTweaks(HashSet<string> selectedKeys) => RunCategory("Advanced", () =>
-        {
-            if (selectedKeys.Contains("ProcessorScheduling"))
-                SetRegistry(@"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\PriorityControl",
-                    "Win32PrioritySeparation", 38, RegistryValueKind.DWord,
-                    "Processor Scheduling → Programs (Win32PrioritySeparation=38)");
-
-            if (selectedKeys.Contains("DisableDynamicTick"))
-                RunCommand("bcdedit /set disabledynamictick yes", "Disable dynamic tick");
-
-            if (selectedKeys.Contains("DisableCpuThrottling"))
-            {
-                const string throttlePath =
-                    @"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\" +
-                    @"54533251-82be-4824-96c1-47b60b740d00\893dee8e-2bef-41e0-89c6-b55d0929964c";
-                SetRegistry(throttlePath, "ValueMax", 0, RegistryValueKind.DWord, "Disable CPU throttling");
-                RunCommand(
-                    "powercfg -setacvalueindex SCHEME_CURRENT SUB_PROCESSOR PERFAUTONOMOUS 0 & " +
-                    "powercfg -setactive SCHEME_CURRENT", "Apply CPU throttle policy");
-            }
-
-            if (selectedKeys.Contains("EnableTrim"))
-                RunCommand("fsutil behavior set disabledeletenotify 0", "Enable SSD TRIM");
-
-            if (selectedKeys.Contains("AggressiveAnimations"))
-            {
-                SetRegistry(@"HKEY_CURRENT_USER\Control Panel\Desktop",
-                    "UserPreferencesMask",
-                    new byte[] { 0x90, 0x12, 0x03, 0x80, 0x10, 0x00, 0x00, 0x00 },
-                    RegistryValueKind.Binary, "UserPreferencesMask — disable all UI animations");
-                SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",
-                    "TaskbarAnimations", 0, RegistryValueKind.DWord, "Disable taskbar animations");
-                SetRegistry(@"HKEY_CURRENT_USER\Control Panel\Desktop\WindowMetrics",
-                    "MinAnimate", "0", RegistryValueKind.String, "Disable minimize/maximize animations");
-                SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",
-                    "ListviewShadow", 0, RegistryValueKind.DWord, "Disable listview drop shadows");
-                SetRegistry(@"HKEY_CURRENT_USER\Control Panel\Desktop",
-                    "FontSmoothing", "2", RegistryValueKind.String, "Keep ClearType font smoothing");
-            }
-        });
-
-        public static List<TweakResult> UndoAdvancedTweaks()
-        {
-            var r = RestoreCategory("Advanced");
-            RunCommand("bcdedit /deletevalue disabledynamictick 2>nul", "Restore dynamic tick default");
-            return r;
-        }
-
-        // ── 8. SECURITY HARDENING ─────────────────────────────────────────
-        public static void ApplySecurityTweaks() => RunCategory("Security", () =>
-        {
-            SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\IniFileMapping\Autorun.inf",
-                "(Default)", "@SYS:DoesNotExist", RegistryValueKind.String, "Block Autorun.inf execution");
-            SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer",
-                "NoDriveTypeAutoRun", 0xFF, RegistryValueKind.DWord, "Disable AutoRun (user)");
-            SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer",
-                "NoDriveTypeAutoRun", 0xFF, RegistryValueKind.DWord, "Disable AutoRun (machine)");
-            EnsureRegistryKey(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Explorer");
-            SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Explorer",
-                "NoAutoplayfornonVolume", 1, RegistryValueKind.DWord, "Disable AutoPlay for non-volume devices");
-            SetRegistry(@"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Terminal Server",
-                "fDenyTSConnections", 1, RegistryValueKind.DWord, "Disable Remote Desktop (RDP)");
-            RunCommand("netsh advfirewall firewall set rule group=\"Remote Desktop\" new enable=no 2>nul",
-                "Block RDP firewall rule");
-            RunPowerShell("Set-SmbServerConfiguration -EnableSMB1Protocol $false -Force", "Disable SMBv1 server");
-            RunCommand("sc config lanmanworkstation start=auto", "Ensure LanmanWorkstation stays enabled");
-            RunPowerShell("Disable-WindowsOptionalFeature -Online -FeatureName SMB1Protocol -NoRestart",
-                "Remove SMBv1 Windows feature");
-            RunPowerShell(
-                "Get-WmiObject Win32_NetworkAdapterConfiguration | " +
-                "Where-Object { $_.TcpipNetbiosOptions -ne $null } | " +
-                "ForEach-Object { $_.SetTcpipNetbios(2) }",
-                "Disable NetBIOS over TCP/IP (all adapters)");
-            SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender",
-                "DisableAntiSpyware", 0, RegistryValueKind.DWord, "Ensure Defender: not disabled by policy");
-            SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender\Real-Time Protection",
-                "DisableRealtimeMonitoring", 0, RegistryValueKind.DWord, "Ensure Defender real-time protection ON");
-            RunPowerShell("Set-MpPreference -DisableRealtimeMonitoring $false", "Enable Defender real-time monitoring");
-        });
-
-        public static List<TweakResult> UndoSecurityTweaks() => RestoreCategory("Security");
 
         // ── NAGLE'S ALGORITHM ─────────────────────────────────────────────
         private const string NaglePath =
@@ -685,12 +394,11 @@ namespace Win11Optimizer
             {
                 if (disable) _results.Add(new TweakResult
                     { Name = "Disable Nagle's Algorithm", Success = false, Error = ex.Message });
-                else Debug.WriteLine($"[NAGLE RESTORE] {ex.Message}");
             }
         }
 
-        public static void DisableNaglesAlgorithm() => ModifyNagle(true);
-        public static void RestoreNaglesAlgorithm() => ModifyNagle(false);
+        private static void DisableNaglesAlgorithm() => ModifyNagle(true);
+        private static void RestoreNaglesAlgorithm()  => ModifyNagle(false);
 
         // ── SYSTEM RESTORE POINT ──────────────────────────────────────────
         public static bool CreateRestorePoint(string description)
@@ -710,253 +418,14 @@ namespace Win11Optimizer
                 if (p.ExitCode != 0)
                 {
                     string err = p.StandardError.ReadToEnd().Trim();
-                    Debug.WriteLine($"[RESTORE POINT] PS exit {p.ExitCode}: {err}");
-                    if (err.Contains("0x80042306") || err.Contains("too soon") || err.Contains("frequency"))
-                        return true;
-                    return false;
+                    return err.Contains("0x80042306") || err.Contains("too soon") || err.Contains("frequency");
                 }
                 return true;
             }
-            catch (Exception ex) { Debug.WriteLine($"[RESTORE POINT FAIL] {ex.Message}"); return false; }
+            catch (Exception ex) { Debug.WriteLine($"[RESTORE POINT] {ex.Message}"); return false; }
         }
 
-        // ═══════════════════════════════════════════════════════════════════
-        //  INDIVIDUAL TWEAK DISPATCH
-        // ═══════════════════════════════════════════════════════════════════
-        // Wraps a single-tweak execution: sets category, runs action, clears, saves.
-        private static void Dispatch(string category, Action action)
-        {
-            _currentCategory = category;
-            action();
-            _currentCategory = "";
-            _appliedCategories.Add(category);
-            SaveBackups();
-        }
-
-        private static string CategoryForKey(string key)
-        {
-            if (key.StartsWith("Perf_"))  return "Performance";
-            if (key.StartsWith("Priv_"))  return "Privacy";
-            if (key.StartsWith("Resp_"))  return "Responsiveness";
-            if (key.StartsWith("Game_"))  return "Gaming";
-            if (key.StartsWith("Net_"))   return "Network";
-            if (key.StartsWith("Bloat_")) return "Bloatware";
-            if (key.StartsWith("Sec_"))   return "Security";
-            if (key.StartsWith("Adv_"))   return "Advanced";
-            return "";
-        }
-
-        public static void ApplyTweak(string key)
-        {
-            string cat = CategoryForKey(key);
-            Dispatch(cat, () =>
-            {
-                switch (key)
-                {
-                    // ── PERFORMANCE ───────────────────────────────────────
-                    case "Perf_PowerPlan":
-                        RunCommand("powercfg -setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c", "High Performance power plan"); break;
-                    case "Perf_PowerThrottle":
-                        SetRegistry(@"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power\PowerThrottling",
-                            "PowerThrottlingOff", 1, RegistryValueKind.DWord, "Disable Power Throttling"); break;
-                    case "Perf_SysMain":   DisableService("SysMain"); break;
-                    case "Perf_WSearch":   DisableService("WSearch"); break;
-                    case "Perf_StartupDelay":
-                        SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Serialize",
-                            "StartupDelayInMSec", 0, RegistryValueKind.DWord, "Remove startup delay"); break;
-                    case "Perf_VisualFX":
-                        SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects",
-                            "VisualFXSetting", 2, RegistryValueKind.DWord, "Visual effects: best performance"); break;
-                    case "Perf_NtfsLastAccess":
-                        RunCommand("fsutil behavior set disablelastaccess 1", "Disable NTFS last-access updates"); break;
-                    case "Perf_8Dot3":
-                        RunCommand("fsutil behavior set disable8dot3 1", "Disable 8.3 filenames"); break;
-                    case "Perf_Hibernate":
-                        RunCommand("powercfg -h off", "Disable hibernation"); break;
-                    case "Perf_MemCompression":
-                        RunPowerShell("Disable-MMAgent -MemoryCompression", "Disable memory compression"); break;
-                    case "Perf_TimerRes":
-                        try { TimeBeginPeriod(1); _results.Add(new TweakResult { Name = "Set timer resolution to 0.5ms", Success = true }); }
-                        catch (Exception ex) { _results.Add(new TweakResult { Name = "Set timer resolution", Success = false, Error = ex.Message }); }
-                        EnsureRegistryKey(@"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\kernel");
-                        SetRegistry(@"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\kernel",
-                            "GlobalTimerResolutionRequests", 1, RegistryValueKind.DWord, "Persist high-res timer"); break;
-
-                    // ── PRIVACY ───────────────────────────────────────────
-                    case "Priv_Telemetry":
-                        SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\DataCollection",
-                            "AllowTelemetry", 0, RegistryValueKind.DWord, "Disable telemetry");
-                        SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection",
-                            "AllowTelemetry", 0, RegistryValueKind.DWord, "Disable telemetry (legacy key)"); break;
-                    case "Priv_DiagTrack":
-                        foreach (var s in new[] { "DiagTrack", "dmwappushservice", "RetailDemo", "WerSvc" }) DisableService(s); break;
-                    case "Priv_AdvertisingId":
-                        SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo",
-                            "Enabled", 0, RegistryValueKind.DWord, "Disable Advertising ID");
-                        SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo",
-                            "DisabledByGroupPolicy", 1, RegistryValueKind.DWord, "Disable Advertising ID (policy)"); break;
-                    case "Priv_BingStart":
-                        SetRegistry(@"HKEY_CURRENT_USER\Software\Policies\Microsoft\Windows\Explorer",
-                            "DisableSearchBoxSuggestions", 1, RegistryValueKind.DWord, "Disable Bing in Start");
-                        SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Search",
-                            "BingSearchEnabled", 0, RegistryValueKind.DWord, "Disable Bing Search"); break;
-                    case "Priv_Cortana":
-                        SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Search",
-                            "CortanaConsent", 0, RegistryValueKind.DWord, "Disable Cortana consent"); break;
-                    case "Priv_ActivityFeed":
-                        SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\System", "EnableActivityFeed",      0, RegistryValueKind.DWord, "Disable Activity Feed");
-                        SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\System", "PublishUserActivities",   0, RegistryValueKind.DWord, "Disable publishing user activities");
-                        SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\System", "UploadUserActivities",    0, RegistryValueKind.DWord, "Disable uploading user activities"); break;
-                    case "Priv_Location":
-                        SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LocationAndSensors",
-                            "DisableLocation", 1, RegistryValueKind.DWord, "Disable location tracking"); break;
-                    case "Priv_Camera":
-                        SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy",
-                            "LetAppsAccessCamera", 2, RegistryValueKind.DWord, "Block app camera access"); break;
-                    case "Priv_WER":
-                        SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Windows Error Reporting",
-                            "Disabled", 1, RegistryValueKind.DWord, "Disable Windows Error Reporting"); break;
-                    case "Priv_SmartScreen":
-                        SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\System",
-                            "EnableSmartScreen", 0, RegistryValueKind.DWord, "Disable SmartScreen"); break;
-                    case "Priv_TelemetryTasks":
-                        foreach (var t in TelemetryTasks) DisableScheduledTask(t); break;
-                    case "Priv_AppTracking":
-                        SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",
-                            "Start_TrackProgs", 0, RegistryValueKind.DWord, "Disable app launch tracking"); break;
-                    case "Priv_Feedback":
-                        SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Siuf\Rules",
-                            "NumberOfSIUFInPeriod", 0, RegistryValueKind.DWord, "Disable feedback requests"); break;
-                    case "Priv_ChatIcon":
-                        EnsureRegistryKey(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced");
-                        SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",
-                            "TaskbarMn", 0, RegistryValueKind.DWord, "Disable Chat/Teams taskbar icon"); break;
-                    case "Priv_Recall":
-                        EnsureRegistryKey(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsAI");
-                        SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsAI",
-                            "DisableAIDataAnalysis", 1, RegistryValueKind.DWord, "Disable Windows Recall (machine)");
-                        EnsureRegistryKey(@"HKEY_CURRENT_USER\Software\Policies\Microsoft\Windows\WindowsAI");
-                        SetRegistry(@"HKEY_CURRENT_USER\Software\Policies\Microsoft\Windows\WindowsAI",
-                            "DisableAIDataAnalysis", 1, RegistryValueKind.DWord, "Disable Windows Recall (user)"); break;
-                    case "Priv_HostsBlock":
-                        ApplyHostsBlockList(); break;
-
-                    // ── RESPONSIVENESS ────────────────────────────────────
-                    case "Resp_MenuDelay":
-                        SetRegistry(@"HKEY_CURRENT_USER\Control Panel\Desktop", "MenuShowDelay", "0", RegistryValueKind.String, "Instant menu show"); break;
-                    case "Resp_AppKill":
-                        SetRegistry(@"HKEY_CURRENT_USER\Control Panel\Desktop", "WaitToKillAppTimeout", "2000", RegistryValueKind.String, "Fast app kill timeout");
-                        SetRegistry(@"HKEY_CURRENT_USER\Control Panel\Desktop", "HungAppTimeout",       "1000", RegistryValueKind.String, "Fast hung app timeout"); break;
-                    case "Resp_ServiceKill":
-                        SetRegistry(@"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control",
-                            "WaitToKillServiceTimeout", "2000", RegistryValueKind.String, "Fast service kill timeout"); break;
-                    case "Resp_AutoEndTasks":
-                        SetRegistry(@"HKEY_CURRENT_USER\Control Panel\Desktop", "AutoEndTasks", "1", RegistryValueKind.String, "Auto end tasks on shutdown"); break;
-                    case "Resp_PlatformTick":
-                        RunCommand("bcdedit /set useplatformtick yes",           "Platform tick (high-res timer)");
-                        RunCommand("bcdedit /deletevalue useplatformclock 2>nul", "Remove platform clock override"); break;
-                    case "Resp_WinTips":
-                        SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager",
-                            "SoftLandingEnabled", 0, RegistryValueKind.DWord, "Disable Windows Tips"); break;
-                    case "Resp_SuggestedContent":
-                        SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager",
-                            "SubscribedContent-338389Enabled", 0, RegistryValueKind.DWord, "Disable suggested content"); break;
-
-                    // ── GAMING ────────────────────────────────────────────
-                    case "Game_HAGS":
-                        SetRegistry(@"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\GraphicsDrivers",
-                            "HwSchMode", 2, RegistryValueKind.DWord, "Enable HAGS"); break;
-                    case "Game_GameMode":
-                        SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\GameBar", "AllowAutoGameMode",  1, RegistryValueKind.DWord, "Enable Game Mode");
-                        SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\GameBar", "AutoGameModeEnabled",1, RegistryValueKind.DWord, "Enable Auto Game Mode"); break;
-                    case "Game_MouseAccel":
-                        SetRegistry(@"HKEY_CURRENT_USER\Control Panel\Mouse", "MouseSpeed",      "0", RegistryValueKind.String, "Disable mouse acceleration");
-                        SetRegistry(@"HKEY_CURRENT_USER\Control Panel\Mouse", "MouseThreshold1", "0", RegistryValueKind.String, "Mouse threshold 1");
-                        SetRegistry(@"HKEY_CURRENT_USER\Control Panel\Mouse", "MouseThreshold2", "0", RegistryValueKind.String, "Mouse threshold 2"); break;
-                    case "Game_CPUPriority":
-                        SetRegistry(@"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\PriorityControl",
-                            "Win32PrioritySeparation", 38, RegistryValueKind.DWord, "CPU foreground priority boost"); break;
-                    case "Game_DVR":
-                        SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\GameDVR",
-                            "AppCaptureEnabled", 0, RegistryValueKind.DWord, "Disable Game DVR capture");
-                        SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\GameDVR",
-                            "AllowGameDVR", 0, RegistryValueKind.DWord, "Disable Game DVR (policy)"); break;
-                    case "Game_FSO":
-                        SetRegistry(@"HKEY_CURRENT_USER\System\GameConfigStore", "GameDVR_FSEBehaviorMode",        2, RegistryValueKind.DWord, "Disable FSO globally");
-                        SetRegistry(@"HKEY_CURRENT_USER\System\GameConfigStore", "GameDVR_HonorUserFSEBehaviorMode",1, RegistryValueKind.DWord, "Honor FSO setting"); break;
-                    case "Game_GPUPower":
-                        EnsureRegistryKey(GpuClassKey);
-                        SetRegistry(GpuClassKey, "PerfLevelSrc", 0x3322, RegistryValueKind.DWord, "GPU power: Prefer Maximum Performance");
-                        RunCommand("powercfg -setacvalueindex SCHEME_CURRENT SUB_VIDEO VIDEOIDLE 0 & powercfg -setactive SCHEME_CURRENT",
-                            "GPU power policy: prevent idle"); break;
-                    case "Game_NvidiaTelemetry":
-                        foreach (var s in new[] { "NvTelemetryContainer", "NvDisplayContainerLS" }) DisableService(s);
-                        foreach (var t in NvidiaTelemetryTasks) DisableScheduledTask(t); break;
-
-                    // ── NETWORK ───────────────────────────────────────────
-                    case "Net_Nagle":      DisableNaglesAlgorithm(); break;
-                    case "Net_RSS":        RunCommand("netsh int tcp set global rss=enabled",            "Enable RSS"); break;
-                    case "Net_TCPAutoTune":RunCommand("netsh int tcp set global autotuninglevel=normal", "TCP auto-tuning: normal"); break;
-                    case "Net_Throttle":
-                        SetRegistry(MmProfile, "NetworkThrottlingIndex", unchecked((int)0xffffffff),
-                            RegistryValueKind.DWord, "Disable network throttling"); break;
-                    case "Net_MMResponsive":
-                        SetRegistry(MmProfile, "SystemResponsiveness", 0,
-                            RegistryValueKind.DWord, "Max multimedia responsiveness"); break;
-                    case "Net_DoH":
-                    {
-                        const string doh11  = DnsCacheParams + @"\DohWellKnownServers\1.1.1.1";
-                        const string doh10  = DnsCacheParams + @"\DohWellKnownServers\1.0.0.1";
-                        const string dohUrl = "https://cloudflare-dns.com/dns-query";
-                        EnsureRegistryKey(DnsCacheParams);
-                        SetRegistry(DnsCacheParams, "EnableAutoDoh", 2, RegistryValueKind.DWord, "Enable DoH");
-                        EnsureRegistryKey(doh11);
-                        SetRegistry(doh11, "DohFlags",    3,      RegistryValueKind.DWord,  "Register 1.1.1.1 as DoH server");
-                        SetRegistry(doh11, "DohTemplate", dohUrl, RegistryValueKind.String, "Cloudflare DoH template");
-                        EnsureRegistryKey(doh10);
-                        SetRegistry(doh10, "DohFlags",    3,      RegistryValueKind.DWord,  "Register 1.0.0.1 as DoH server");
-                        SetRegistry(doh10, "DohTemplate", dohUrl, RegistryValueKind.String, "Cloudflare DoH template (secondary)");
-                        break;
-                    }
-
-                    // ── SECURITY ──────────────────────────────────────────
-                    case "Sec_AutoRun":
-                        SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\IniFileMapping\Autorun.inf",
-                            "(Default)", "@SYS:DoesNotExist", RegistryValueKind.String, "Block Autorun.inf");
-                        SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer",
-                            "NoDriveTypeAutoRun", 0xFF, RegistryValueKind.DWord, "Disable AutoRun (user)");
-                        SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer",
-                            "NoDriveTypeAutoRun", 0xFF, RegistryValueKind.DWord, "Disable AutoRun (machine)"); break;
-                    case "Sec_RDP":
-                        SetRegistry(@"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Terminal Server",
-                            "fDenyTSConnections", 1, RegistryValueKind.DWord, "Disable Remote Desktop (RDP)");
-                        RunCommand("netsh advfirewall firewall set rule group=\"Remote Desktop\" new enable=no 2>nul",
-                            "Block RDP firewall rule"); break;
-                    case "Sec_SMBv1":
-                        RunPowerShell("Set-SmbServerConfiguration -EnableSMB1Protocol $false -Force", "Disable SMBv1 server");
-                        RunPowerShell("Disable-WindowsOptionalFeature -Online -FeatureName SMB1Protocol -NoRestart", "Remove SMBv1 feature"); break;
-                    case "Sec_NetBIOS":
-                        RunPowerShell(
-                            "Get-WmiObject Win32_NetworkAdapterConfiguration | Where-Object { $_.TcpipNetbiosOptions -ne $null } | ForEach-Object { $_.SetTcpipNetbios(2) }",
-                            "Disable NetBIOS over TCP/IP"); break;
-                    case "Sec_Defender":
-                        SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender",
-                            "DisableAntiSpyware", 0, RegistryValueKind.DWord, "Ensure Defender not disabled");
-                        SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender\Real-Time Protection",
-                            "DisableRealtimeMonitoring", 0, RegistryValueKind.DWord, "Ensure Defender real-time ON");
-                        RunPowerShell("Set-MpPreference -DisableRealtimeMonitoring $false", "Enable Defender real-time monitoring"); break;
-
-                    default:
-                        _results.Add(new TweakResult
-                            { Name = $"Unknown tweak key: {key}", Success = false, Error = "No handler found" });
-                        break;
-                }
-            });
-        }
-
-        public static void ApplyAdvancedTweak(string advancedKey)
-            => ApplyAdvancedTweaks(new HashSet<string> { advancedKey });
-
+        // ── BLOATWARE ─────────────────────────────────────────────────────
         public static void ApplyBloatwareTweak(string tweakKey)
         {
             var patternMap = new Dictionary<string, string[]>
@@ -986,6 +455,271 @@ namespace Win11Optimizer
                         $"Get-AppxProvisionedPackage -Online | Where-Object {{ $_.PackageName -like '{pattern}' }}" +
                         $" | Remove-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue",
                         $"Remove (provisioned) {name}");
+                }
+            });
+        }
+
+        // ── ADVANCED TWEAKS ───────────────────────────────────────────────
+        public static void ApplyAdvancedTweak(string advancedKey)
+        {
+            Dispatch("Advanced", () =>
+            {
+                switch (advancedKey)
+                {
+                    case "ProcessorScheduling":
+                        SetRegistry(@"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\PriorityControl",
+                            "Win32PrioritySeparation", 38, RegistryValueKind.DWord, "Processor Scheduling → Programs"); break;
+                    case "DisableDynamicTick":
+                        RunCommand("bcdedit /set disabledynamictick yes", "Disable dynamic tick"); break;
+                    case "DisableCpuThrottling":
+                        SetRegistry(
+                            @"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\" +
+                            @"54533251-82be-4824-96c1-47b60b740d00\893dee8e-2bef-41e0-89c6-b55d0929964c",
+                            "ValueMax", 0, RegistryValueKind.DWord, "Disable CPU throttling");
+                        RunCommand("powercfg -setacvalueindex SCHEME_CURRENT SUB_PROCESSOR PERFAUTONOMOUS 0 & " +
+                            "powercfg -setactive SCHEME_CURRENT", "Apply CPU throttle policy"); break;
+                    case "EnableTrim":
+                        RunCommand("fsutil behavior set disabledeletenotify 0", "Enable SSD TRIM"); break;
+                    case "AggressiveAnimations":
+                        SetRegistry(@"HKEY_CURRENT_USER\Control Panel\Desktop", "UserPreferencesMask",
+                            new byte[] { 0x90, 0x12, 0x03, 0x80, 0x10, 0x00, 0x00, 0x00 },
+                            RegistryValueKind.Binary, "Disable all UI animations");
+                        SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",
+                            "TaskbarAnimations", 0, RegistryValueKind.DWord, "Disable taskbar animations");
+                        SetRegistry(@"HKEY_CURRENT_USER\Control Panel\Desktop\WindowMetrics",
+                            "MinAnimate", "0", RegistryValueKind.String, "Disable minimize animations");
+                        SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",
+                            "ListviewShadow", 0, RegistryValueKind.DWord, "Disable listview shadows");
+                        SetRegistry(@"HKEY_CURRENT_USER\Control Panel\Desktop",
+                            "FontSmoothing", "2", RegistryValueKind.String, "Keep ClearType smoothing"); break;
+                }
+            });
+        }
+
+        // ── INDIVIDUAL TWEAK DISPATCH ─────────────────────────────────────
+        private const string MmProfile     = @"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile";
+        private const string DnsCacheParams = @"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters";
+        private const string GpuClassKey   = @"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}\0000";
+
+        private static readonly string[] TelemetryTasks =
+        {
+            @"\Microsoft\Windows\Application Experience\Microsoft Compatibility Appraiser",
+            @"\Microsoft\Windows\Application Experience\ProgramDataUpdater",
+            @"\Microsoft\Windows\Autochk\Proxy",
+            @"\Microsoft\Windows\Customer Experience Improvement Program\Consolidator",
+            @"\Microsoft\Windows\Customer Experience Improvement Program\UsbCeip",
+            @"\Microsoft\Windows\DiskDiagnostic\Microsoft-Windows-DiskDiagnosticDataCollector",
+        };
+
+        private static readonly string[] NvidiaTasks =
+        {
+            @"\NvTmRepOnLogon_{B2FE1952-0186-46C3-BAEC-A80AA35AC5B8}",
+            @"\NvTmRep_{B2FE1952-0186-46C3-BAEC-A80AA35AC5B8}",
+            @"\NvTmMon_{B2FE1952-0186-46C3-BAEC-A80AA35AC5B8}",
+        };
+
+        public static void ApplyTweak(string key)
+        {
+            Dispatch(CategoryForKey(key), () =>
+            {
+                switch (key)
+                {
+                    // ── PERFORMANCE ───────────────────────────────────────
+                    case "Perf_PowerPlan":
+                        RunCommand("powercfg -setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c", "High Performance power plan"); break;
+                    case "Perf_PowerThrottle":
+                        SetRegistry(@"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power\PowerThrottling",
+                            "PowerThrottlingOff", 1, RegistryValueKind.DWord, "Disable Power Throttling"); break;
+                    case "Perf_SysMain":   DisableService("SysMain"); break;
+                    case "Perf_WSearch":   DisableService("WSearch"); break;
+                    case "Perf_StartupDelay":
+                        SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Serialize",
+                            "StartupDelayInMSec", 0, RegistryValueKind.DWord, "Remove startup delay"); break;
+                    case "Perf_VisualFX":
+                        SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects",
+                            "VisualFXSetting", 2, RegistryValueKind.DWord, "Visual effects: best performance"); break;
+                    case "Perf_NtfsLastAccess":
+                        RunCommand("fsutil behavior set disablelastaccess 1", "Disable NTFS last-access"); break;
+                    case "Perf_8Dot3":
+                        RunCommand("fsutil behavior set disable8dot3 1", "Disable 8.3 filenames"); break;
+                    case "Perf_Hibernate":
+                        RunCommand("powercfg -h off", "Disable hibernation"); break;
+                    case "Perf_MemCompression":
+                        RunPowerShell("Disable-MMAgent -MemoryCompression", "Disable memory compression"); break;
+                    case "Perf_TimerRes":
+                        try { TimeBeginPeriod(1); _results.Add(new TweakResult { Name = "Set timer resolution to 0.5ms", Success = true }); }
+                        catch (Exception ex) { _results.Add(new TweakResult { Name = "Set timer resolution", Success = false, Error = ex.Message }); }
+                        EnsureRegistryKey(@"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\kernel");
+                        SetRegistry(@"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\kernel",
+                            "GlobalTimerResolutionRequests", 1, RegistryValueKind.DWord, "Persist high-res timer"); break;
+
+                    // ── PRIVACY ───────────────────────────────────────────
+                    case "Priv_Telemetry":
+                        SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\DataCollection",
+                            "AllowTelemetry", 0, RegistryValueKind.DWord, "Disable telemetry");
+                        SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection",
+                            "AllowTelemetry", 0, RegistryValueKind.DWord, "Disable telemetry (legacy)"); break;
+                    case "Priv_DiagTrack":
+                        foreach (var s in new[] { "DiagTrack", "dmwappushservice", "RetailDemo", "WerSvc" }) DisableService(s); break;
+                    case "Priv_AdvertisingId":
+                        SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo",
+                            "Enabled", 0, RegistryValueKind.DWord, "Disable Advertising ID");
+                        SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo",
+                            "DisabledByGroupPolicy", 1, RegistryValueKind.DWord, "Disable Advertising ID (policy)"); break;
+                    case "Priv_BingStart":
+                        SetRegistry(@"HKEY_CURRENT_USER\Software\Policies\Microsoft\Windows\Explorer",
+                            "DisableSearchBoxSuggestions", 1, RegistryValueKind.DWord, "Disable Bing in Start");
+                        SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Search",
+                            "BingSearchEnabled", 0, RegistryValueKind.DWord, "Disable Bing Search"); break;
+                    case "Priv_Cortana":
+                        SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Search",
+                            "CortanaConsent", 0, RegistryValueKind.DWord, "Disable Cortana consent"); break;
+                    case "Priv_ActivityFeed":
+                        SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\System", "EnableActivityFeed",    0, RegistryValueKind.DWord, "Disable Activity Feed");
+                        SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\System", "PublishUserActivities", 0, RegistryValueKind.DWord, "Disable publishing activities");
+                        SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\System", "UploadUserActivities",  0, RegistryValueKind.DWord, "Disable uploading activities"); break;
+                    case "Priv_Location":
+                        SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LocationAndSensors",
+                            "DisableLocation", 1, RegistryValueKind.DWord, "Disable location tracking"); break;
+                    case "Priv_Camera":
+                        SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy",
+                            "LetAppsAccessCamera", 2, RegistryValueKind.DWord, "Block app camera access"); break;
+                    case "Priv_WER":
+                        SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Windows Error Reporting",
+                            "Disabled", 1, RegistryValueKind.DWord, "Disable Windows Error Reporting"); break;
+                    case "Priv_SmartScreen":
+                        SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\System",
+                            "EnableSmartScreen", 0, RegistryValueKind.DWord, "Disable SmartScreen"); break;
+                    case "Priv_TelemetryTasks":
+                        foreach (var t in TelemetryTasks) DisableTask(t); break;
+                    case "Priv_AppTracking":
+                        SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",
+                            "Start_TrackProgs", 0, RegistryValueKind.DWord, "Disable app launch tracking"); break;
+                    case "Priv_Feedback":
+                        SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Siuf\Rules",
+                            "NumberOfSIUFInPeriod", 0, RegistryValueKind.DWord, "Disable feedback requests"); break;
+                    case "Priv_ChatIcon":
+                        EnsureRegistryKey(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced");
+                        SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",
+                            "TaskbarMn", 0, RegistryValueKind.DWord, "Disable Chat/Teams icon"); break;
+                    case "Priv_Recall":
+                        EnsureRegistryKey(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsAI");
+                        SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsAI",
+                            "DisableAIDataAnalysis", 1, RegistryValueKind.DWord, "Disable Windows Recall (machine)");
+                        EnsureRegistryKey(@"HKEY_CURRENT_USER\Software\Policies\Microsoft\Windows\WindowsAI");
+                        SetRegistry(@"HKEY_CURRENT_USER\Software\Policies\Microsoft\Windows\WindowsAI",
+                            "DisableAIDataAnalysis", 1, RegistryValueKind.DWord, "Disable Windows Recall (user)"); break;
+                    case "Priv_HostsBlock":
+                        ApplyHostsBlockList(); break;
+
+                    // ── RESPONSIVENESS ────────────────────────────────────
+                    case "Resp_MenuDelay":
+                        SetRegistry(@"HKEY_CURRENT_USER\Control Panel\Desktop", "MenuShowDelay", "0", RegistryValueKind.String, "Instant menu show"); break;
+                    case "Resp_AppKill":
+                        SetRegistry(@"HKEY_CURRENT_USER\Control Panel\Desktop", "WaitToKillAppTimeout", "2000", RegistryValueKind.String, "Fast app kill timeout");
+                        SetRegistry(@"HKEY_CURRENT_USER\Control Panel\Desktop", "HungAppTimeout",       "1000", RegistryValueKind.String, "Fast hung app timeout"); break;
+                    case "Resp_ServiceKill":
+                        SetRegistry(@"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control",
+                            "WaitToKillServiceTimeout", "2000", RegistryValueKind.String, "Fast service kill timeout"); break;
+                    case "Resp_AutoEndTasks":
+                        SetRegistry(@"HKEY_CURRENT_USER\Control Panel\Desktop", "AutoEndTasks", "1", RegistryValueKind.String, "Auto end tasks on shutdown"); break;
+                    case "Resp_PlatformTick":
+                        RunCommand("bcdedit /set useplatformtick yes",            "Platform tick");
+                        RunCommand("bcdedit /deletevalue useplatformclock 2>nul", "Remove platform clock override"); break;
+                    case "Resp_WinTips":
+                        SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager",
+                            "SoftLandingEnabled", 0, RegistryValueKind.DWord, "Disable Windows Tips"); break;
+                    case "Resp_SuggestedContent":
+                        SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager",
+                            "SubscribedContent-338389Enabled", 0, RegistryValueKind.DWord, "Disable suggested content"); break;
+
+                    // ── GAMING ────────────────────────────────────────────
+                    case "Game_HAGS":
+                        SetRegistry(@"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\GraphicsDrivers",
+                            "HwSchMode", 2, RegistryValueKind.DWord, "Enable HAGS"); break;
+                    case "Game_GameMode":
+                        SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\GameBar", "AllowAutoGameMode",   1, RegistryValueKind.DWord, "Enable Game Mode");
+                        SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\GameBar", "AutoGameModeEnabled", 1, RegistryValueKind.DWord, "Enable Auto Game Mode"); break;
+                    case "Game_MouseAccel":
+                        SetRegistry(@"HKEY_CURRENT_USER\Control Panel\Mouse", "MouseSpeed",      "0", RegistryValueKind.String, "Disable mouse acceleration");
+                        SetRegistry(@"HKEY_CURRENT_USER\Control Panel\Mouse", "MouseThreshold1", "0", RegistryValueKind.String, "Mouse threshold 1");
+                        SetRegistry(@"HKEY_CURRENT_USER\Control Panel\Mouse", "MouseThreshold2", "0", RegistryValueKind.String, "Mouse threshold 2"); break;
+                    case "Game_CPUPriority":
+                        SetRegistry(@"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\PriorityControl",
+                            "Win32PrioritySeparation", 38, RegistryValueKind.DWord, "CPU foreground priority boost"); break;
+                    case "Game_DVR":
+                        SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\GameDVR",
+                            "AppCaptureEnabled", 0, RegistryValueKind.DWord, "Disable Game DVR capture");
+                        SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\GameDVR",
+                            "AllowGameDVR", 0, RegistryValueKind.DWord, "Disable Game DVR (policy)"); break;
+                    case "Game_FSO":
+                        SetRegistry(@"HKEY_CURRENT_USER\System\GameConfigStore", "GameDVR_FSEBehaviorMode",          2, RegistryValueKind.DWord, "Disable FSO globally");
+                        SetRegistry(@"HKEY_CURRENT_USER\System\GameConfigStore", "GameDVR_HonorUserFSEBehaviorMode", 1, RegistryValueKind.DWord, "Honor FSO setting"); break;
+                    case "Game_GPUPower":
+                        EnsureRegistryKey(GpuClassKey);
+                        SetRegistry(GpuClassKey, "PerfLevelSrc", 0x3322, RegistryValueKind.DWord, "GPU: Prefer Maximum Performance");
+                        RunCommand("powercfg -setacvalueindex SCHEME_CURRENT SUB_VIDEO VIDEOIDLE 0 & powercfg -setactive SCHEME_CURRENT",
+                            "GPU power: prevent idle"); break;
+                    case "Game_NvidiaTelemetry":
+                        foreach (var s in new[] { "NvTelemetryContainer", "NvDisplayContainerLS" }) DisableService(s);
+                        foreach (var t in NvidiaTasks) DisableTask(t); break;
+
+                    // ── NETWORK ───────────────────────────────────────────
+                    case "Net_Nagle":       DisableNaglesAlgorithm(); break;
+                    case "Net_RSS":         RunCommand("netsh int tcp set global rss=enabled",            "Enable RSS"); break;
+                    case "Net_TCPAutoTune": RunCommand("netsh int tcp set global autotuninglevel=normal", "TCP auto-tuning"); break;
+                    case "Net_Throttle":
+                        SetRegistry(MmProfile, "NetworkThrottlingIndex", unchecked((int)0xffffffff),
+                            RegistryValueKind.DWord, "Disable network throttling"); break;
+                    case "Net_MMResponsive":
+                        SetRegistry(MmProfile, "SystemResponsiveness", 0,
+                            RegistryValueKind.DWord, "Max multimedia responsiveness"); break;
+                    case "Net_DoH":
+                    {
+                        const string doh11  = DnsCacheParams + @"\DohWellKnownServers\1.1.1.1";
+                        const string doh10  = DnsCacheParams + @"\DohWellKnownServers\1.0.0.1";
+                        const string dohUrl = "https://cloudflare-dns.com/dns-query";
+                        EnsureRegistryKey(DnsCacheParams);
+                        SetRegistry(DnsCacheParams, "EnableAutoDoh", 2, RegistryValueKind.DWord, "Enable DoH");
+                        EnsureRegistryKey(doh11);
+                        SetRegistry(doh11, "DohFlags",    3,      RegistryValueKind.DWord,  "Register 1.1.1.1");
+                        SetRegistry(doh11, "DohTemplate", dohUrl, RegistryValueKind.String, "Cloudflare DoH template");
+                        EnsureRegistryKey(doh10);
+                        SetRegistry(doh10, "DohFlags",    3,      RegistryValueKind.DWord,  "Register 1.0.0.1");
+                        SetRegistry(doh10, "DohTemplate", dohUrl, RegistryValueKind.String, "Cloudflare DoH template (secondary)");
+                        break;
+                    }
+
+                    // ── SECURITY ──────────────────────────────────────────
+                    case "Sec_AutoRun":
+                        SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\IniFileMapping\Autorun.inf",
+                            "(Default)", "@SYS:DoesNotExist", RegistryValueKind.String, "Block Autorun.inf");
+                        SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer",
+                            "NoDriveTypeAutoRun", 0xFF, RegistryValueKind.DWord, "Disable AutoRun (user)");
+                        SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer",
+                            "NoDriveTypeAutoRun", 0xFF, RegistryValueKind.DWord, "Disable AutoRun (machine)"); break;
+                    case "Sec_RDP":
+                        SetRegistry(@"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Terminal Server",
+                            "fDenyTSConnections", 1, RegistryValueKind.DWord, "Disable RDP");
+                        RunCommand("netsh advfirewall firewall set rule group=\"Remote Desktop\" new enable=no 2>nul",
+                            "Block RDP firewall rule"); break;
+                    case "Sec_SMBv1":
+                        RunPowerShell("Set-SmbServerConfiguration -EnableSMB1Protocol $false -Force", "Disable SMBv1 server");
+                        RunPowerShell("Disable-WindowsOptionalFeature -Online -FeatureName SMB1Protocol -NoRestart", "Remove SMBv1 feature"); break;
+                    case "Sec_NetBIOS":
+                        RunPowerShell(
+                            "Get-WmiObject Win32_NetworkAdapterConfiguration | Where-Object { $_.TcpipNetbiosOptions -ne $null } | ForEach-Object { $_.SetTcpipNetbios(2) }",
+                            "Disable NetBIOS over TCP/IP"); break;
+                    case "Sec_Defender":
+                        SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender",
+                            "DisableAntiSpyware", 0, RegistryValueKind.DWord, "Ensure Defender not disabled");
+                        SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender\Real-Time Protection",
+                            "DisableRealtimeMonitoring", 0, RegistryValueKind.DWord, "Ensure Defender real-time ON");
+                        RunPowerShell("Set-MpPreference -DisableRealtimeMonitoring $false", "Enable Defender real-time"); break;
+
+                    default:
+                        _results.Add(new TweakResult { Name = $"Unknown key: {key}", Success = false, Error = "No handler" });
+                        break;
                 }
             });
         }
