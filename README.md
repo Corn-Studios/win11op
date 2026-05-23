@@ -109,5 +109,5 @@ MIT — see [LICENSE](LICENSE)
 
 ## AI Disclosure
 
-> ⚠ This project contains code written with the assistance of **Claude by Anthropic** (claude.ai).  
-> The **Startup Manager** feature and the **v1.0.0 UI rework** were developed with Claude Sonnet. All code has been reviewed and tested by the project maintainer.
+> ⚠ This project contains code written with the assistance of **Claude by Anthropic** (claude.ai).  All readmes were made by Claude Sonnet, as I am too lazy to make publishes this good
+> The **Startup Manager** feature and the **v1.0.0 UI rework** was developed with Claude Sonnet. All code has been reviewed and tested by me.
