@@ -42,6 +42,75 @@ namespace Win11Optimizer
         public static readonly Color ACCENT_TEXT = Color.FromArgb(  8,   8,  18);  // dark text on gold buttons
     }
 
+    // ── DPI scale helper ─────────────────────────────────────────────────────
+    //
+    //  Usage:  Dpi.S(16)   → returns 16 scaled to the current monitor DPI
+    //          Dpi.F(8.5f) → scales a font point-size (rarely needed; fonts
+    //                         already scale automatically in PerMonitorV2, but
+    //                         useful for hand-drawn geometry measured in points)
+    //
+    //  Call Dpi.Update(this) once in the MainForm constructor, then again
+    //  inside the DpiChanged handler so the scale factor stays in sync when
+    //  the window moves to a different monitor.
+    //
+    //  BASE_DPI is 96 — the Windows "100% scaling" reference DPI.
+
+    public static class Dpi
+    {
+        private const float BASE_DPI = 96f;
+
+        /// <summary>Current DPI of the primary form's monitor (updated via <see cref="Update"/>).</summary>
+        public static float Current { get; private set; } = BASE_DPI;
+
+        /// <summary>Scale factor relative to 96 DPI.  1.0 at 100%, 1.5 at 150%, etc.</summary>
+        public static float Scale => Current / BASE_DPI;
+
+        /// <summary>Scale an integer pixel value to the current DPI.</summary>
+        public static int S(int pixels) => (int)Math.Round(pixels * Scale);
+
+        /// <summary>Scale a float pixel value to the current DPI.</summary>
+        public static float S(float pixels) => pixels * Scale;
+
+        /// <summary>Scale a Size to the current DPI.</summary>
+        public static Size S(Size sz) => new Size(S(sz.Width), S(sz.Height));
+
+        /// <summary>Scale a Point to the current DPI.</summary>
+        public static Point S(Point pt) => new Point(S(pt.X), S(pt.Y));
+
+        /// <summary>
+        ///   Pull the current DPI from <paramref name="ctrl"/> (or its handle)
+        ///   and cache it.  Call this in the form constructor and again inside
+        ///   the <c>DpiChanged</c> handler.
+        /// </summary>
+        public static void Update(Control ctrl)
+        {
+            try
+            {
+                // DeviceDpi is exposed on Control in .NET 5+
+                Current = ctrl.DeviceDpi;
+            }
+            catch
+            {
+                // Fallback: read from a Graphics context on the control
+                try
+                {
+                    using var g = ctrl.CreateGraphics();
+                    Current = g.DpiX;
+                }
+                catch { /* leave Current unchanged */ }
+            }
+        }
+
+        /// <summary>
+        ///   Convenience overload — update from a raw DPI integer as supplied
+        ///   by the WinForms <c>DpiChangedEventArgs.DeviceDpiNew</c>.
+        /// </summary>
+        public static void Update(int newDpi)
+        {
+            if (newDpi > 0) Current = newDpi;
+        }
+    }
+
     public class TweakEntry
     {
         public string Name        { get; set; }
@@ -726,9 +795,18 @@ public class MainForm : Form
 
 private void InitUI()
         {
+            // Seed the Dpi helper from our handle before any layout runs.
+            // DeviceDpi is available once the handle is created; force it now.
+            Dpi.Update(this);
+
+            // AutoScaleMode.None: we own all pixel values and scale them
+            // ourselves via Dpi.S().  Letting WinForms auto-scale on top of
+            // PerMonitorV2 causes double-scaling artefacts.
+            AutoScaleMode = AutoScaleMode.None;
+
             Text            = "Win11 Optimizer";
-            Size            = new Size(1200, 760);
-            MinimumSize     = new Size(960, 620);
+            Size            = new Size(Dpi.S(1200), Dpi.S(760));
+            MinimumSize     = new Size(Dpi.S(960),  Dpi.S(620));
             BackColor       = Theme.BG;
             ForeColor       = Theme.TEXT_PRI;
             Font            = new Font("Segoe UI", 9f);
@@ -753,6 +831,52 @@ private void InitUI()
             Controls.Add(_topBar);
             Controls.Add(_logPanel);
             BuildTooltip();
+
+            // PerMonitorV2: fired when the window is dragged to a monitor
+            // with a different DPI.  Rebuild all sized controls so they
+            // re-measure against the new scale factor.
+            DpiChanged += (s, e) =>
+            {
+                Dpi.Update(e.DeviceDpiNew);
+
+                // Scale the form itself to the suggested bounds Windows provides
+                // (this is the recommended way — better than re-computing manually)
+                if (e.SuggestedRectangle != Rectangle.Empty)
+                    SetBounds(e.SuggestedRectangle.X,
+                              e.SuggestedRectangle.Y,
+                              e.SuggestedRectangle.Width,
+                              e.SuggestedRectangle.Height);
+
+                MinimumSize = new Size(Dpi.S(960), Dpi.S(620));
+
+                // Rebuild the panels whose sizes are computed once at
+                // construction time and won't respond to a Dock relayout alone.
+                RescalePanels();
+            };
+        }
+
+        /// <summary>
+        ///   Re-applies DPI-dependent sizes to the fixed-height chrome panels
+        ///   (top bar, bottom bar, sidebar, log panel) after a DPI change.
+        ///   Controls that use Dock = Fill reflow automatically; only the ones
+        ///   with explicit pixel heights/widths need to be touched here.
+        /// </summary>
+        private void RescalePanels()
+        {
+            SuspendLayout();
+            try
+            {
+                if (_topBar    != null) _topBar.Height    = Dpi.S(60);
+                if (_bottomBar != null) _bottomBar.Height = Dpi.S(136);
+                if (_sidebar   != null) _sidebar.Width    = Dpi.S(210);
+                if (_logPanel  != null && _logPanel.Visible)
+                    _logPanel.Height = Dpi.S(180);
+            }
+            finally
+            {
+                ResumeLayout(performLayout: true);
+                LayoutAll();
+            }
         }
 
         private void LayoutAll()
@@ -775,7 +899,7 @@ private void InitUI()
 
 private void BuildTopBar()
         {
-            _topBar = new Panel { BackColor = Theme.SURFACE, Height = 60 };
+            _topBar = new Panel { BackColor = Theme.SURFACE, Height = Dpi.S(60) };
             _topBar.Paint += (s, e) =>
             {
                 var g = e.Graphics;
@@ -822,7 +946,7 @@ private void BuildTopBar()
             var ghLink = new FlatButton("⭐  GITHUB ↗", Theme.ACCENT)
             {
                 AutoSize  = false,
-                Size      = new Size(115, 30),
+                Size      = new Size(Dpi.S(115), Dpi.S(30)),
                 Font      = new Font("Courier New", 7.5f, FontStyle.Bold),
                 ForeColor = Theme.ACCENT_TEXT,
                 Cursor    = Cursors.Hand
@@ -832,7 +956,8 @@ private void BuildTopBar()
             ghLink.Click += (s, e) => Process.Start(new ProcessStartInfo
                 { FileName = "https://github.com/Corn-Studios/win11op", UseShellExecute = true });
             _topBar.SizeChanged += (s, e) =>
-                ghLink.Location = new Point(_topBar.Width - ghLink.Width - 16, (_topBar.Height - ghLink.Height) / 2);
+                ghLink.Location = new Point(_topBar.Width - ghLink.Width - Dpi.S(16),
+                                            (_topBar.Height - ghLink.Height) / 2);
 
             _topBar.Controls.AddRange(new Control[]
                 { cornLbl, titleLbl, _winVerBadge, _adminBadge, ghLink });
@@ -842,7 +967,7 @@ private void BuildTopBar()
 
         private void BuildSidebar()
         {
-            _sidebar = new Panel { BackColor = Theme.SURFACE, Width = 210 };
+            _sidebar = new Panel { BackColor = Theme.SURFACE, Width = Dpi.S(210) };
             _sidebar.Paint += (s, e) =>
             {
                 var g = e.Graphics;
@@ -864,11 +989,11 @@ private void BuildTopBar()
                 Font      = new Font("Courier New", 7f, FontStyle.Bold),
                 ForeColor = Theme.ACCENT,
                 AutoSize  = true,
-                Location  = new Point(14, 14)
+                Location  = new Point(Dpi.S(14), Dpi.S(14))
             };
             _sidebar.Controls.Add(hdr);
 
-            int y = 38;
+            int y = Dpi.S(38);
             foreach (var cat in SidebarCategories)
             {
                 if (cat == "Startup" || cat == "History")
@@ -876,25 +1001,25 @@ private void BuildTopBar()
                     var div = new Panel
                     {
                         BackColor = Theme.BORDER,
-                        Bounds    = new Rectangle(8, y + 2, 194, 1)
+                        Bounds    = new Rectangle(Dpi.S(8), y + 2, Dpi.S(194), 1)
                     };
                     _sidebar.Controls.Add(div);
-                    y += 10;
+                    y += Dpi.S(10);
                 }
 
                 var btn = MakeSidebarBtn(cat);
-                btn.SetBounds(8, y, 194, 36);
+                btn.SetBounds(Dpi.S(8), y, Dpi.S(194), Dpi.S(36));
                 _sidebar.Controls.Add(btn);
-                y += 38;
+                y += Dpi.S(38);
             }
 
-            y += 8;
+            y += Dpi.S(8);
             var selAll = new FlatButton("✔ Select All", Theme.ACCENT);
-            selAll.SetBounds(8, y, 92, 28);
+            selAll.SetBounds(Dpi.S(8), y, Dpi.S(92), Dpi.S(28));
             selAll.Click += (s, e) => SetAllInView(true);
 
             var selNone = new FlatButton("✘ None", Theme.SURFACE2);
-            selNone.SetBounds(108, y, 94, 28);
+            selNone.SetBounds(Dpi.S(108), y, Dpi.S(94), Dpi.S(28));
             selNone.Click += (s, e) => SetAllInView(false);
 
             _sidebar.Controls.AddRange(new Control[] { selAll, selNone });
@@ -1573,7 +1698,7 @@ private void ShowHistory()
 
 private void BuildBottomBar()
         {
-            _bottomBar = new Panel { BackColor = Theme.SURFACE, Height = 136 };
+            _bottomBar = new Panel { BackColor = Theme.SURFACE, Height = Dpi.S(136) };
             _bottomBar.Paint += (s, e) =>
             {
                 using var p = new Pen(Theme.BORDER);
@@ -1583,14 +1708,14 @@ private void BuildBottomBar()
             _progOuter = new Panel
             {
                 BackColor = Theme.BORDER,
-                Location  = new Point(16, 12),
-                Size      = new Size(500, 6)
+                Location  = new Point(Dpi.S(16), Dpi.S(12)),
+                Size      = new Size(Dpi.S(500), Dpi.S(6))
             };
             _progInner = new Panel
             {
                 BackColor = Theme.ACCENT,
                 Location  = Point.Empty,
-                Size      = new Size(0, 6)
+                Size      = new Size(0, Dpi.S(6))
             };
             _progOuter.Controls.Add(_progInner);
 
@@ -1599,7 +1724,7 @@ private void BuildBottomBar()
                 Text      = "Ready",
                 ForeColor = Theme.TEXT_DIM,
                 AutoSize  = true,
-                Location  = new Point(16, 24)
+                Location  = new Point(Dpi.S(16), Dpi.S(24))
             };
 
             _selCountLabel = new Label
@@ -1607,7 +1732,7 @@ private void BuildBottomBar()
                 Text      = "No tweaks selected",
                 ForeColor = Theme.TEXT_DIM,
                 AutoSize  = true,
-                Location  = new Point(16, 46)
+                Location  = new Point(Dpi.S(16), Dpi.S(46))
             };
 
             _restoreChk = new CheckBox
@@ -1617,7 +1742,7 @@ private void BuildBottomBar()
                 BackColor = Color.Transparent,
                 Checked   = true,
                 AutoSize  = true,
-                Location  = new Point(16, 92),
+                Location  = new Point(Dpi.S(16), Dpi.S(92)),
                 FlatStyle = FlatStyle.Flat
             };
             _restoreChk.FlatAppearance.BorderColor        = Theme.BORDER;
@@ -1626,29 +1751,29 @@ private void BuildBottomBar()
 
             _undoBtn = new FlatButton("↩ Undo Selected", Theme.SURFACE2)
             {
-                Size    = new Size(150, 36),
+                Size    = new Size(Dpi.S(150), Dpi.S(36)),
                 Enabled = false
             };
             _undoBtn.Click += OnUndoClicked;
 
             _clearBtn = new FlatButton("Clear Selection", Theme.SURFACE2)
-                { Size = new Size(130, 36) };
+                { Size = new Size(Dpi.S(130), Dpi.S(36)) };
             _clearBtn.Click += (s, e) => SetAllInView(false);
 
             _runBtn = new FlatButton("⚡  RUN SELECTED", Theme.ACCENT)
             {
-                Size      = new Size(165, 36),
+                Size      = new Size(Dpi.S(165), Dpi.S(36)),
                 Font      = new Font("Courier New", 8.5f, FontStyle.Bold),
                 ForeColor = Theme.ACCENT_TEXT
             };
             _runBtn.Click += OnRunClicked;
 
             var logToggle = new FlatButton("📋 Log", Theme.SURFACE2)
-                { Size = new Size(70, 26) };
+                { Size = new Size(Dpi.S(70), Dpi.S(26)) };
             logToggle.Click += (s, e) => ToggleLog();
 
             _exportBtn = new FlatButton("↑ Export Profile", Theme.SURFACE2)
-                { Size = new Size(130, 36) };
+                { Size = new Size(Dpi.S(130), Dpi.S(36)) };
             _exportBtn.Click += (s, e) =>
             {
                 var keys = _tiles.Where(t => t.IsChecked).Select(t => t.Entry.TweakKey);
@@ -1656,7 +1781,7 @@ private void BuildBottomBar()
             };
 
             _importBtn = new FlatButton("↓ Import Profile", Theme.SURFACE2)
-                { Size = new Size(130, 36) };
+                { Size = new Size(Dpi.S(130), Dpi.S(36)) };
             _importBtn.Click += (s, e) =>
             {
                 var keys = TweakProfile.Import();
@@ -1678,15 +1803,14 @@ private void BuildBottomBar()
 
             _bottomBar.SizeChanged += (s, e) =>
             {
-                int r = _bottomBar.Width - 16;
-                _runBtn.Location    = new Point(r - 160, 82);
-                _clearBtn.Location  = new Point(r - 300, 82);
-                _undoBtn.Location   = new Point(r - 460, 82);
-                _exportBtn.Location = new Point(r - 606, 82);
-                _importBtn.Location = new Point(r - 750, 82);
-                // Log button pinned top-right, progress bar stops before it
-                logToggle.Location = new Point(r - 76, 12);
-                _progOuter.Width   = Math.Max(200, r - 96);
+                int r = _bottomBar.Width - Dpi.S(16);
+                _runBtn.Location    = new Point(r - Dpi.S(160), Dpi.S(82));
+                _clearBtn.Location  = new Point(r - Dpi.S(300), Dpi.S(82));
+                _undoBtn.Location   = new Point(r - Dpi.S(460), Dpi.S(82));
+                _exportBtn.Location = new Point(r - Dpi.S(606), Dpi.S(82));
+                _importBtn.Location = new Point(r - Dpi.S(750), Dpi.S(82));
+                logToggle.Location  = new Point(r - Dpi.S(76),  Dpi.S(12));
+                _progOuter.Width    = Math.Max(Dpi.S(200), r - Dpi.S(96));
             };
 
             _bottomBar.Controls.AddRange(new Control[]
@@ -1713,7 +1837,7 @@ private void BuildLogPanel()
             {
                 BackColor = Color.FromArgb(8, 8, 20),
                 Visible   = false,
-                Height    = 180
+                Height    = Dpi.S(180)
             };
 
             var hdr = new Panel { Dock = DockStyle.Top, Height = 26, BackColor = Theme.SURFACE };
@@ -1754,8 +1878,8 @@ private void BuildTooltip()
                 ForeColor = Theme.TEXT_PRI,
                 BackColor = Color.Transparent,
                 AutoSize  = false,
-                Location  = new Point(20, 10),
-                Size      = new Size(268, 18)
+                Location  = new Point(Dpi.S(20), Dpi.S(10)),
+                Size      = new Size(Dpi.S(268), Dpi.S(18))
             };
 
             _ttWhat = new Label
@@ -1764,16 +1888,16 @@ private void BuildTooltip()
                 ForeColor = Theme.TEXT_SEC,
                 BackColor = Color.Transparent,
                 AutoSize  = false,
-                Location  = new Point(20, 32),
-                Size      = new Size(268, 120)
+                Location  = new Point(Dpi.S(20), Dpi.S(32)),
+                Size      = new Size(Dpi.S(268), Dpi.S(120))
             };
 
             _tooltip = new Panel
             {
                 BackColor = Color.FromArgb(13, 12, 28),
-                Size      = new Size(300, 0),   // height set dynamically
+                Size      = new Size(Dpi.S(300), 0),   // height set dynamically
                 Visible   = false,
-                Padding   = new Padding(12)
+                Padding   = new Padding(Dpi.S(12))
             };
             _tooltip.Paint += (s, e) =>
             {
@@ -2096,9 +2220,9 @@ private void SetStatus(string msg, Color col = default)
         public TweakTile(TweakEntry entry)
         {
             Entry     = entry;
-            Size      = new Size(230, 130);
+            Size      = new Size(Dpi.S(230), Dpi.S(130));
             BackColor = Theme.CARD;
-            Margin    = new Padding(5);
+            Margin    = new Padding(Dpi.S(5));
             Cursor    = Cursors.Hand;
 
             Color accent = CatAccent.TryGetValue(entry.Category, out var ac) ? ac : Theme.ACCENT;
@@ -2153,8 +2277,8 @@ private void SetStatus(string msg, Color col = default)
                 Text      = entry.Icon,
                 Font      = new Font("Segoe UI Emoji", 18f),
                 AutoSize  = false,
-                Size      = new Size(40, 40),
-                Location  = new Point(8, 8),
+                Size      = new Size(Dpi.S(40), Dpi.S(40)),
+                Location  = new Point(Dpi.S(8),  Dpi.S(8)),
                 BackColor = Color.Transparent,
                 TextAlign = ContentAlignment.MiddleCenter
             };
@@ -2165,8 +2289,8 @@ private void SetStatus(string msg, Color col = default)
                 Font         = new Font("Courier New", 7.5f, FontStyle.Bold),
                 ForeColor    = Theme.TEXT_PRI,
                 AutoSize     = false,
-                Size         = new Size(170, 40),
-                Location     = new Point(54, 8),
+                Size         = new Size(Dpi.S(170), Dpi.S(40)),
+                Location     = new Point(Dpi.S(54), Dpi.S(8)),
                 BackColor    = Color.Transparent,
                 AutoEllipsis = true,
                 UseMnemonic  = false
@@ -2178,8 +2302,8 @@ private void SetStatus(string msg, Color col = default)
                 Font      = new Font("Segoe UI", 7.5f),
                 ForeColor = Theme.TEXT_DIM,
                 AutoSize  = false,
-                Size      = new Size(218, 38),
-                Location  = new Point(10, 74),
+                Size      = new Size(Dpi.S(218), Dpi.S(38)),
+                Location  = new Point(Dpi.S(10),  Dpi.S(74)),
                 BackColor = Color.Transparent
             };
 
@@ -2192,7 +2316,7 @@ private void SetStatus(string msg, Color col = default)
                 ForeColor = badgeFg,
                 BackColor = badgeBg,
                 AutoSize  = true,
-                Location  = new Point(10, 52),
+                Location  = new Point(Dpi.S(10), Dpi.S(52)),
                 Padding   = new Padding(3, 1, 3, 1)
             };
 
@@ -2365,6 +2489,10 @@ internal static class GraphicsEx
         {
             try
             {
+                // DPI awareness is declared in app.manifest (PerMonitorV2) so Windows
+                // sets the DPI context before the process starts.  The programmatic
+                // call is kept as a belt-and-suspenders fallback for hosts that strip
+                // the manifest (e.g. some CI runners and older deployment tools).
                 Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
