@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
@@ -108,7 +109,7 @@ namespace Win11Optimizer
             E("Performance","🧠",true,"Perf_MemCompression",
                 "Disable Memory Compression",
                 "Reduces CPU overhead when RAM is under pressure",
-                "Runs: Disable-MMAgent -MemoryCompression (PowerShell)"),
+                "Runs: Disable-MMAgent -MemoryCompression + Disable-MMAgent -PageCombining (PowerShell)\nPage combining wastes CPU cycles merging identical RAM pages — low value on 16GB+ systems."),
             E("Performance","⏰",true,"Perf_TimerRes",
                 "Set Timer Resolution to 0.5ms",
                 "Calls timeBeginPeriod(1) + registry key for sub-ms scheduler ticks",
@@ -149,15 +150,15 @@ namespace Win11Optimizer
             E("Privacy","⚠",true,"Priv_WER",
                 "Disable Windows Error Reporting",
                 "Stops crash dumps and reports being sent to Microsoft",
-                "Sets WER\\Disabled = 1 in Windows Error Reporting policy key"),
+                "Sets WER\\Disabled = 1 + disables WER\\QueueReporting scheduled task\nPrevents crash reports being uploaded even when WerSvc is disabled, since the QueueReporting scheduled task can still fire independently."),
             E("Privacy","🛡",true,"Priv_SmartScreen",
                 "Disable SmartScreen (Explorer)",
                 "Removes SmartScreen cloud checks in File Explorer",
                 "Sets EnableSmartScreen = 0 in Windows System policy"),
             E("Privacy","🗓",true,"Priv_TelemetryTasks",
                 "Disable Scheduled Telemetry Tasks",
-                "Kills CEIP, AppraiserV2, Proxy and DiskDiag data tasks",
-                "Disables 6 scheduled tasks under Microsoft\\Windows\\Application Experience, Autochk, CEIP, DiskDiagnostic"),
+                "Kills CEIP, AppraiserV2, Proxy, DiskDiag, DiagnosticInvoker & push notification tasks",
+                "Disables 9 scheduled tasks: Application Experience, Autochk, CEIP, DiskDiagnostic, Diagnosis\\Scheduled, WindowsUpdate\\Automatic App Update, Push Notifications\\LockApplicationComponent"),
             E("Privacy","👁",true,"Priv_AppTracking",
                 "Disable App Launch Tracking",
                 "Stops Windows logging which apps you open and when",
@@ -198,7 +199,7 @@ namespace Win11Optimizer
             E("Responsiveness","⏱",true,"Resp_PlatformTick",
                 "Platform Tick (High-Res Timer)",
                 "Forces constant-rate high-resolution system timer",
-                "Runs: bcdedit /set useplatformtick yes"),
+                "bcdedit /set useplatformtick yes + bcdedit /set useplatformclock no\nForces the constant-rate platform tick AND disables the HPET platform clock override — the full two-part tweak for minimum timer latency."),
             E("Responsiveness","💡",true,"Resp_WinTips",
                 "Disable Windows Tips",
                 "Stops the 'Did you know...' popups and suggestions",
@@ -260,7 +261,7 @@ namespace Win11Optimizer
             E("Network","🏎",false,"Net_MMResponsive",
                 "Max Multimedia Responsiveness",
                 "Sets SystemResponsiveness to 0 for games/audio",
-                "Sets SystemResponsiveness = 0 in Multimedia\\SystemProfile"),
+                "Sets SystemResponsiveness = 0 + tunes MMCSS Games & Pro Audio task priorities\nAlso sets GPU Priority = 8, Priority = 6, SchedulingCategory = High for both Games and Pro Audio tasks — reduces audio DPC latency alongside game thread scheduling."),
             E("Network","🔐",false,"Net_DoH",
                 "DNS over HTTPS (Cloudflare 1.1.1.1)",
                 "Enables DoH via Windows DNS Client, routes queries encrypted",
@@ -348,6 +349,50 @@ namespace Win11Optimizer
                 "Aggressive Animation Disabling",
                 "Kills UserPreferencesMask, TaskbarAnim, MinAnimate bits",
                 "Sets UserPreferencesMask binary value + TaskbarAnimations = 0, MinAnimate = 0, ListviewShadow = 0"),
+
+            // ── New Advanced tweaks (route through ApplyTweak via TweakKey) ───────────────────
+            E("Advanced","🅿️",false,"Adv_CoreParking",
+                "Disable CPU Core Parking",
+                "Forces all CPU cores to stay active — prevents park-induced stutter",
+                "powercfg CPMINCORES → 100 (AC + DC) on current power plan\nWindows 11 parks idle cores to save power. On desktops this can cause micro-stutters, especially on Intel 12th–14th gen. Setting CPMINCORES=100 prevents any core from being parked."),
+            E("Advanced","📨",false,"Adv_MsiMode",
+                "Enable MSI Mode (GPU)",
+                "Switches GPU interrupts from legacy line-based to Message Signaled",
+                "Sets MSISupported = 1 + MessageNumberLimit = 0x10 in GPU class driver key\nMSI mode routes GPU interrupts more efficiently, reducing DPC latency vs. legacy line-based interrupt mode. Only affects the primary GPU adapter slot (0000)."),
+            E("Advanced","📬",false,"Adv_IrqAffinity",
+                "IRQ Affinity — Spread GPU Interrupts",
+                "Sets GPU DevicePolicy to spread MSI-X interrupts across all P-cores",
+                "Sets DevicePolicy = 4 (IrqPolicySpreadMessagesAcrossAllProcessors) in GPU Interrupt Management\\Affinity Policy\nFor MSI-X capable GPUs — distributes interrupt handling across all processor cores instead of pinning to core 0."),
+            E("Advanced","🕐",false,"Adv_TscSync",
+                "TSC Sync Policy: Legacy",
+                "Forces legacy TSC synchronisation — reduces scheduling jitter",
+                "bcdedit /set tscsyncpolicy legacy\nThe TSC (Time Stamp Counter) sync policy controls how Windows synchronises high-res timers across cores. Legacy mode can reduce micro-jitter on multi-core systems."),
+            E("Advanced","📣",false,"Adv_X2Apic",
+                "Enable x2APIC Mode",
+                "Enables x2APIC interrupt controller — improves handling on many-core CPUs",
+                "bcdedit /set x2apicpolicy enable\nx2APIC extends the legacy APIC interrupt controller to support more than 255 logical processors and improves interrupt delivery efficiency. Most beneficial on HEDT and Ryzen systems with many cores."),
+
+            // ── New Privacy tweaks ────────────────────────────────────────────────────
+            E("Privacy","☁️",true,"Priv_CloudContent",
+                "Disable Cloud Content & Delivery Manager",
+                "Kills Spotlight ads, silent app installs, lock screen tips",
+                "Sets DisableWindowsConsumerFeatures = 1 in CloudContent policy + disables 7 ContentDeliveryManager values\nControls Windows Spotlight (lock screen ads), suggested apps in Start, silent background app installs, and OEM pre-installed app promotions."),
+
+            // ── New Responsiveness tweaks ──────────────────────────────────────────────
+            E("Responsiveness","📋",false,"Resp_VerboseStatus",
+                "Verbose Boot/Shutdown Status",
+                "Shows real service names during boot and shutdown instead of spinner",
+                "Sets verbosestatus = 1 in HKLM\\...\\Policies\\System\nReplaces the generic spinning circle with real-time text showing which services are starting or stopping. Not a performance tweak — useful diagnostic tool for power users."),
+
+            // ── New Network tweaks ────────────────────────────────────────────────────────────
+            E("Network","📦",false,"Net_LargeOffload",
+                "Disable Large Send Offload (LSO)",
+                "Disables LSO v2 on all physical adapters — reduces NIC-driver jitter",
+                "Set-NetAdapterAdvancedProperty LSO V2 (IPv4/IPv6) → Disabled on all physical adapters\nLSO lets the NIC batch large sends, but some drivers introduce inconsistent latency doing so. Disabling forces the CPU to handle segmentation, which is more predictable on modern hardware."),
+            E("Network","⏳",false,"Net_TcpTimedWait",
+                "Reduce TCP TIME_WAIT Delay",
+                "Cuts TIME_WAIT connection hold from 240s to 30s",
+                "Sets TcpTimedWaitDelay = 30 in HKLM\\...\\Tcpip\\Parameters\nWindows holds closed TCP connections in TIME_WAIT for 240 seconds by default. Reducing to 30s frees ports faster on systems making many short-lived connections (game launchers, streaming, APIs)."),
         };
 
         public static IEnumerable<TweakEntry> ForCategory(string cat) =>
@@ -1097,7 +1142,7 @@ private void ApplyPreset(string preset)
                             "Resp_AutoEndTasks" or "Resp_WinTips" or "Resp_SuggestedContent" or
                             "Priv_AdvertisingId" or "Priv_BingStart" or "Priv_ChatIcon" or
                             "Priv_Feedback" or "Priv_AppTracking" or "Priv_Recall" or
-                            "Perf_StartupDelay" or "Perf_VisualFX";
+                            "Perf_StartupDelay" or "Perf_VisualFX" or "Priv_CloudContent";
                     SetStatus("Preset applied: Minimal — safe UI & privacy tweaks only", Theme.TEXT_SEC);
                     break;
             }
@@ -1769,6 +1814,7 @@ private void SetStatus(string msg, Color col = default)
         public TweakEntry Entry { get; }
         public event EventHandler CheckedChanged;
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool IsChecked
         {
             get => _checked;

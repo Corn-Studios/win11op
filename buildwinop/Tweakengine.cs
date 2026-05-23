@@ -257,6 +257,7 @@ namespace Win11Optimizer
             RunCommand("fsutil behavior set disablelastaccess 0", "Re-enable NTFS last-access");
             RunCommand("powercfg -h on", "Re-enable hibernation");
             RunPowerShell("Enable-MMAgent -MemoryCompression", "Re-enable memory compression");
+            RunPowerShell("Enable-MMAgent -PageCombining",    "Re-enable page combining");
             try { TimeEndPeriod(1); } catch { }
             return r;
         }
@@ -267,6 +268,9 @@ namespace Win11Optimizer
             EnableService("DiagTrack"); EnableService("WerSvc");
             EnableTask(@"\Microsoft\Windows\Customer Experience Improvement Program\Consolidator");
             EnableTask(@"\Microsoft\Windows\Customer Experience Improvement Program\UsbCeip");
+            EnableTask(@"\Microsoft\Windows\Windows Error Reporting\QueueReporting");
+            EnableTask(@"\Microsoft\Windows\Diagnosis\Scheduled");
+            EnableTask(@"\Microsoft\Windows\Push Notifications\LockApplicationComponent");
             RemoveHostsBlockList();
             return r;
         }
@@ -274,7 +278,8 @@ namespace Win11Optimizer
         public static List<TweakResult> UndoResponsivenessTweaks()
         {
             var r = RestoreCategory("Responsiveness");
-            RunCommand("bcdedit /deletevalue useplatformtick 2>nul", "Restore platform tick default");
+            RunCommand("bcdedit /deletevalue useplatformtick 2>nul",  "Restore platform tick default");
+            RunCommand("bcdedit /deletevalue useplatformclock 2>nul", "Restore platform clock default");
             return r;
         }
 
@@ -290,6 +295,15 @@ namespace Win11Optimizer
             var r = RestoreCategory("Network");
             RestoreNaglesAlgorithm();
             RunCommand("netsh int tcp set global autotuninglevel=normal", "Restore TCP auto-tuning");
+            // Re-enable Large Send Offload
+            RunPowerShell(
+                "Get-NetAdapter -Physical | ForEach-Object { " +
+                "  try { Set-NetAdapterAdvancedProperty -Name $_.Name -DisplayName 'Large Send Offload V2 (IPv4)' -DisplayValue 'Enabled' -ErrorAction SilentlyContinue } catch {}; " +
+                "  try { Set-NetAdapterAdvancedProperty -Name $_.Name -DisplayName 'Large Send Offload V2 (IPv6)' -DisplayValue 'Enabled' -ErrorAction SilentlyContinue } catch {}; " +
+                "  try { Set-NetAdapterAdvancedProperty -Name $_.Name -DisplayName 'Large Send Offload Version 2 (IPv4)' -DisplayValue 'Enabled' -ErrorAction SilentlyContinue } catch {}; " +
+                "  try { Set-NetAdapterAdvancedProperty -Name $_.Name -DisplayName 'Large Send Offload Version 2 (IPv6)' -DisplayValue 'Enabled' -ErrorAction SilentlyContinue } catch {} " +
+                "}",
+                "Re-enable Large Send Offload (LSO)");
             return r;
         }
 
@@ -297,6 +311,14 @@ namespace Win11Optimizer
         {
             var r = RestoreCategory("Advanced");
             RunCommand("bcdedit /deletevalue disabledynamictick 2>nul", "Restore dynamic tick default");
+            // Restore core parking to Windows-managed default (0 = park freely)
+            RunCommand(
+                "powercfg -setacvalueindex SCHEME_CURRENT SUB_PROCESSOR CPMINCORES 0 & " +
+                "powercfg -setdcvalueindex SCHEME_CURRENT SUB_PROCESSOR CPMINCORES 0 & " +
+                "powercfg -setactive SCHEME_CURRENT",
+                "Restore CPU core parking");
+            RunCommand("bcdedit /deletevalue tscsyncpolicy 2>nul", "Restore TSC sync policy default");
+            RunCommand("bcdedit /deletevalue x2apicpolicy 2>nul",  "Restore x2APIC policy default");
             return r;
         }
 
@@ -509,6 +531,10 @@ namespace Win11Optimizer
             @"\Microsoft\Windows\Customer Experience Improvement Program\Consolidator",
             @"\Microsoft\Windows\Customer Experience Improvement Program\UsbCeip",
             @"\Microsoft\Windows\DiskDiagnostic\Microsoft-Windows-DiskDiagnosticDataCollector",
+            // Diagnostics invocation and push notification telemetry — separate from DiagTrack service
+            @"\Microsoft\Windows\Diagnosis\Scheduled",
+            @"\Microsoft\Windows\WindowsUpdate\Automatic App Update",
+            @"\Microsoft\Windows\Push Notifications\LockApplicationComponent",
         };
 
         private static readonly string[] NvidiaTasks =
@@ -545,7 +571,9 @@ namespace Win11Optimizer
                     case "Perf_Hibernate":
                         RunCommand("powercfg -h off", "Disable hibernation"); break;
                     case "Perf_MemCompression":
-                        RunPowerShell("Disable-MMAgent -MemoryCompression", "Disable memory compression"); break;
+                        RunPowerShell("Disable-MMAgent -MemoryCompression", "Disable memory compression");
+                        // Page combining wastes CPU cycles combining identical pages — low value on 16GB+ systems
+                        RunPowerShell("Disable-MMAgent -PageCombining", "Disable page combining"); break;
                     case "Perf_TimerRes":
                         try { TimeBeginPeriod(1); _results.Add(new TweakResult { Name = "Set timer resolution to 0.5ms", Success = true }); }
                         catch (Exception ex) { _results.Add(new TweakResult { Name = "Set timer resolution", Success = false, Error = ex.Message }); }
@@ -586,7 +614,9 @@ namespace Win11Optimizer
                             "LetAppsAccessCamera", 2, RegistryValueKind.DWord, "Block app camera access"); break;
                     case "Priv_WER":
                         SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Windows Error Reporting",
-                            "Disabled", 1, RegistryValueKind.DWord, "Disable Windows Error Reporting"); break;
+                            "Disabled", 1, RegistryValueKind.DWord, "Disable Windows Error Reporting");
+                        // Also kill the scheduled upload queue — WerSvc being disabled doesn't prevent this task
+                        DisableTask(@"\Microsoft\Windows\Windows Error Reporting\QueueReporting"); break;
                     case "Priv_SmartScreen":
                         SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\System",
                             "EnableSmartScreen", 0, RegistryValueKind.DWord, "Disable SmartScreen"); break;
@@ -609,6 +639,32 @@ namespace Win11Optimizer
                         EnsureRegistryKey(@"HKEY_CURRENT_USER\Software\Policies\Microsoft\Windows\WindowsAI");
                         SetRegistry(@"HKEY_CURRENT_USER\Software\Policies\Microsoft\Windows\WindowsAI",
                             "DisableAIDataAnalysis", 1, RegistryValueKind.DWord, "Disable Windows Recall (user)"); break;
+                    case "Priv_CloudContent":
+                        // Disables Spotlight suggestions, lock screen ads, "fun facts", and app suggestions
+                        EnsureRegistryKey(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\CloudContent");
+                        SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\CloudContent",
+                            "DisableWindowsConsumerFeatures", 1, RegistryValueKind.DWord, "Disable Windows consumer features");
+                        SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\CloudContent",
+                            "DisableCloudOptimizedContent", 1, RegistryValueKind.DWord, "Disable cloud-optimized content");
+                        SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\CloudContent",
+                            "DisableSoftLanding", 1, RegistryValueKind.DWord, "Disable soft landing tips");
+                        // ContentDeliveryManager — controls lock screen spotlight, suggested apps, silent installs
+                        SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager",
+                            "ContentDeliveryAllowed", 0, RegistryValueKind.DWord, "Disable content delivery");
+                        SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager",
+                            "OemPreInstalledAppsEnabled", 0, RegistryValueKind.DWord, "Disable OEM pre-installed apps");
+                        SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager",
+                            "PreInstalledAppsEnabled", 0, RegistryValueKind.DWord, "Disable pre-installed apps");
+                        SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager",
+                            "SilentInstalledAppsEnabled", 0, RegistryValueKind.DWord, "Disable silent app installs");
+                        SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager",
+                            "SystemPaneSuggestionsEnabled", 0, RegistryValueKind.DWord, "Disable Start suggested apps");
+                        SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager",
+                            "SubscribedContent-310093Enabled", 0, RegistryValueKind.DWord, "Disable Spotlight lock screen");
+                        SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager",
+                            "SubscribedContent-338388Enabled", 0, RegistryValueKind.DWord, "Disable Start suggestions");
+                        SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager",
+                            "SubscribedContent-338389Enabled", 0, RegistryValueKind.DWord, "Disable tips/tricks"); break;
                     case "Priv_HostsBlock":
                         ApplyHostsBlockList(); break;
 
@@ -624,8 +680,12 @@ namespace Win11Optimizer
                     case "Resp_AutoEndTasks":
                         SetRegistry(@"HKEY_CURRENT_USER\Control Panel\Desktop", "AutoEndTasks", "1", RegistryValueKind.String, "Auto end tasks on shutdown"); break;
                     case "Resp_PlatformTick":
-                        RunCommand("bcdedit /set useplatformtick yes",            "Platform tick");
-                        RunCommand("bcdedit /deletevalue useplatformclock 2>nul", "Remove platform clock override"); break;
+                        RunCommand("bcdedit /set useplatformtick yes",   "Platform tick");
+                        RunCommand("bcdedit /set useplatformclock no",   "Disable platform clock (HPET)"); break;
+                    case "Resp_VerboseStatus":
+                        EnsureRegistryKey(@"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System");
+                        SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System",
+                            "verbosestatus", 1, RegistryValueKind.DWord, "Verbose boot/shutdown status messages"); break;
                     case "Resp_WinTips":
                         SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager",
                             "SoftLandingEnabled", 0, RegistryValueKind.DWord, "Disable Windows Tips"); break;
@@ -673,7 +733,39 @@ namespace Win11Optimizer
                             RegistryValueKind.DWord, "Disable network throttling"); break;
                     case "Net_MMResponsive":
                         SetRegistry(MmProfile, "SystemResponsiveness", 0,
-                            RegistryValueKind.DWord, "Max multimedia responsiveness"); break;
+                            RegistryValueKind.DWord, "Max multimedia responsiveness");
+                        // MMCSS Games task — extra scheduling headroom for game threads
+                        EnsureRegistryKey(MmProfile + @"\Tasks\Games");
+                        SetRegistry(MmProfile + @"\Tasks\Games", "Affinity",           0, RegistryValueKind.DWord, "MMCSS Games: Affinity");
+                        SetRegistry(MmProfile + @"\Tasks\Games", "Background Only",    "False", RegistryValueKind.String, "MMCSS Games: not background-only");
+                        SetRegistry(MmProfile + @"\Tasks\Games", "Clock Rate",         10000, RegistryValueKind.DWord, "MMCSS Games: Clock Rate");
+                        SetRegistry(MmProfile + @"\Tasks\Games", "GPU Priority",       8, RegistryValueKind.DWord, "MMCSS Games: GPU Priority");
+                        SetRegistry(MmProfile + @"\Tasks\Games", "Priority",           6, RegistryValueKind.DWord, "MMCSS Games: Priority");
+                        SetRegistry(MmProfile + @"\Tasks\Games", "Scheduling Category","High", RegistryValueKind.String, "MMCSS Games: Scheduling Category");
+                        SetRegistry(MmProfile + @"\Tasks\Games", "SFIO Rate",          "High", RegistryValueKind.String, "MMCSS Games: SFIO Rate");
+                        // MMCSS Pro Audio task — reduces DPC latency for audio stack (Discord, game audio)
+                        EnsureRegistryKey(MmProfile + @"\Tasks\Pro Audio");
+                        SetRegistry(MmProfile + @"\Tasks\Pro Audio", "Affinity",           0,    RegistryValueKind.DWord,  "MMCSS Pro Audio: Affinity");
+                        SetRegistry(MmProfile + @"\Tasks\Pro Audio", "Background Only",    "False", RegistryValueKind.String, "MMCSS Pro Audio: not background-only");
+                        SetRegistry(MmProfile + @"\Tasks\Pro Audio", "Clock Rate",         10000,RegistryValueKind.DWord,  "MMCSS Pro Audio: Clock Rate");
+                        SetRegistry(MmProfile + @"\Tasks\Pro Audio", "GPU Priority",       8,    RegistryValueKind.DWord,  "MMCSS Pro Audio: GPU Priority");
+                        SetRegistry(MmProfile + @"\Tasks\Pro Audio", "Priority",           6,    RegistryValueKind.DWord,  "MMCSS Pro Audio: Priority");
+                        SetRegistry(MmProfile + @"\Tasks\Pro Audio", "Scheduling Category","High", RegistryValueKind.String, "MMCSS Pro Audio: Scheduling Category");
+                        SetRegistry(MmProfile + @"\Tasks\Pro Audio", "SFIO Rate",          "High", RegistryValueKind.String, "MMCSS Pro Audio: SFIO Rate"); break;
+                    case "Net_LargeOffload":
+                        // Disable Large Send Offload v1 + v2 — reduces jitter caused by some NIC drivers
+                        RunPowerShell(
+                            "Get-NetAdapter -Physical | ForEach-Object { " +
+                            "  try { Set-NetAdapterAdvancedProperty -Name $_.Name -DisplayName 'Large Send Offload V2 (IPv4)' -DisplayValue 'Disabled' -ErrorAction SilentlyContinue } catch {}; " +
+                            "  try { Set-NetAdapterAdvancedProperty -Name $_.Name -DisplayName 'Large Send Offload V2 (IPv6)' -DisplayValue 'Disabled' -ErrorAction SilentlyContinue } catch {}; " +
+                            "  try { Set-NetAdapterAdvancedProperty -Name $_.Name -DisplayName 'Large Send Offload Version 2 (IPv4)' -DisplayValue 'Disabled' -ErrorAction SilentlyContinue } catch {}; " +
+                            "  try { Set-NetAdapterAdvancedProperty -Name $_.Name -DisplayName 'Large Send Offload Version 2 (IPv6)' -DisplayValue 'Disabled' -ErrorAction SilentlyContinue } catch {} " +
+                            "}",
+                            "Disable Large Send Offload (LSO) v2 IPv4/IPv6"); break;
+                    case "Net_TcpTimedWait":
+                        // Reduces TIME_WAIT connection hold from 240s default to 30s
+                        SetRegistry(@"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters",
+                            "TcpTimedWaitDelay", 30, RegistryValueKind.DWord, "TCP TIME_WAIT delay → 30s"); break;
                     case "Net_DoH":
                     {
                         const string doh11  = DnsCacheParams + @"\DohWellKnownServers\1.1.1.1";
@@ -716,6 +808,34 @@ namespace Win11Optimizer
                         SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender\Real-Time Protection",
                             "DisableRealtimeMonitoring", 0, RegistryValueKind.DWord, "Ensure Defender real-time ON");
                         RunPowerShell("Set-MpPreference -DisableRealtimeMonitoring $false", "Enable Defender real-time"); break;
+
+                    case "Adv_CoreParking":
+                        // Disables CPU core parking — prevents Windows from idling cores mid-workload
+                        // Done via the power plan's CPMINCORES subgroup (0=park freely, 100=never park)
+                        RunCommand(
+                            "powercfg -setacvalueindex SCHEME_CURRENT SUB_PROCESSOR CPMINCORES 100 & " +
+                            "powercfg -setdcvalueindex SCHEME_CURRENT SUB_PROCESSOR CPMINCORES 100 & " +
+                            "powercfg -setactive SCHEME_CURRENT",
+                            "Disable CPU core parking"); break;
+                    case "Adv_MsiMode":
+                        // Enables Message Signaled Interrupts for GPU — reduces DPC latency vs legacy line-based interrupts
+                        // Targets the display adapter class key (0000 = primary GPU slot)
+                        EnsureRegistryKey(GpuClassKey + @"\Device Parameters\Interrupt Management\MessageSignaledInterruptProperties");
+                        SetRegistry(GpuClassKey + @"\Device Parameters\Interrupt Management\MessageSignaledInterruptProperties",
+                            "MSISupported", 1, RegistryValueKind.DWord, "Enable MSI mode for GPU");
+                        // Also set MessageNumberLimit to 0x10 (16 messages) for maximum MSI-X utilisation
+                        SetRegistry(GpuClassKey + @"\Device Parameters\Interrupt Management\MessageSignaledInterruptProperties",
+                            "MessageNumberLimit", 0x10, RegistryValueKind.DWord, "GPU MSI message limit"); break;
+                    case "Adv_IrqAffinity":
+                        // For MSI-X capable devices: spread interrupts across all P-cores for better throughput
+                        // GPU class — DevicePolicy 4 = IrqPolicySpreadMessagesAcrossAllProcessors
+                        EnsureRegistryKey(GpuClassKey + @"\Device Parameters\Interrupt Management\Affinity Policy");
+                        SetRegistry(GpuClassKey + @"\Device Parameters\Interrupt Management\Affinity Policy",
+                            "DevicePolicy", 4, RegistryValueKind.DWord, "GPU IRQ: spread across all processors"); break;
+                    case "Adv_TscSync":
+                        RunCommand("bcdedit /set tscsyncpolicy legacy", "TSC sync policy → legacy"); break;
+                    case "Adv_X2Apic":
+                        RunCommand("bcdedit /set x2apicpolicy enable", "Enable x2APIC mode"); break;
 
                     default:
                         _results.Add(new TweakResult { Name = $"Unknown key: {key}", Success = false, Error = "No handler" });
