@@ -488,9 +488,6 @@ namespace Win11Optimizer
             {
                 switch (advancedKey)
                 {
-                    case "ProcessorScheduling":
-                        SetRegistry(@"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\PriorityControl",
-                            "Win32PrioritySeparation", 38, RegistryValueKind.DWord, "Processor Scheduling → Programs"); break;
                     case "DisableDynamicTick":
                         RunCommand("bcdedit /set disabledynamictick yes", "Disable dynamic tick"); break;
                     case "DisableCpuThrottling":
@@ -689,10 +686,6 @@ namespace Win11Optimizer
                     case "Resp_WinTips":
                         SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager",
                             "SoftLandingEnabled", 0, RegistryValueKind.DWord, "Disable Windows Tips"); break;
-                    case "Resp_SuggestedContent":
-                        SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager",
-                            "SubscribedContent-338389Enabled", 0, RegistryValueKind.DWord, "Disable suggested content"); break;
-
                     // ── GAMING ────────────────────────────────────────────
                     case "Game_HAGS":
                         SetRegistry(@"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\GraphicsDrivers",
@@ -1038,6 +1031,10 @@ namespace Win11Optimizer
 
                     "Priv_HostsBlock" => HostsBlockApplied(),
 
+                    "Priv_CloudContent" =>
+                        RegDWord(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\CloudContent",
+                            "DisableWindowsConsumerFeatures") == 1,
+
                     // ── RESPONSIVENESS ────────────────────────────────────────
                     "Resp_MenuDelay" =>
                         RegString(@"HKEY_CURRENT_USER\Control Panel\Desktop", "MenuShowDelay") == "0",
@@ -1054,13 +1051,13 @@ namespace Win11Optimizer
 
                     "Resp_PlatformTick" => null, // BCD store not readable via managed registry API
 
+                    "Resp_VerboseStatus" =>
+                        RegDWord(@"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System",
+                            "verbosestatus") == 1,
+
                     "Resp_WinTips" =>
                         RegDWord(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager",
                             "SoftLandingEnabled") == 0,
-
-                    "Resp_SuggestedContent" =>
-                        RegDWord(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager",
-                            "SubscribedContent-338389Enabled") == 0,
 
                     // ── GAMING ────────────────────────────────────────────────
                     "Game_HAGS" =>
@@ -1131,10 +1128,6 @@ namespace Win11Optimizer
                             "DisableAntiSpyware") == 0,
 
                     // ── ADVANCED ──────────────────────────────────────────────
-                    "Adv_ProcessorScheduling" =>
-                        RegDWord(@"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\PriorityControl",
-                            "Win32PrioritySeparation") == 38,
-
                     "Adv_DynamicTick"  => null, // BCD store
                     "Adv_CPUThrottle"  => null, // powercfg scheme — no clean registry check
                     "Adv_TRIM"         => null, // fsutil disabledeletenotify — no clean registry equivalent

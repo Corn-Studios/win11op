@@ -5,7 +5,7 @@
     <TargetFramework>net10.0-windows</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
     <Nullable>disable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
+    <ImplicitUsings>disable</ImplicitUsings>
     <AssemblyName>Win11Optimizer</AssemblyName>
     <RootNamespace>Win11Optimizer</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
