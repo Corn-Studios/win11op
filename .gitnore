@@ -1,8 +1,0 @@
-bin/
-obj/
-*.user
-*.suo
-.vs/
-tweaks_backup.json
-crash.log
-.vscode/
