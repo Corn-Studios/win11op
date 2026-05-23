@@ -1152,7 +1152,6 @@ private void BuildSearchBar()
                 BackColor = Theme.SURFACE,
                 Height    = 56,
                 Dock      = DockStyle.Top,
-                Padding   = new Padding(10, 8, 10, 8)
             };
             _searchBar.Paint += (s, e) =>
             {
