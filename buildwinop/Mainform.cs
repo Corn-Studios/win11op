@@ -480,6 +480,135 @@ public static class ChangeLog
 
     public static class AdminWarning { public static bool Show { get; set; } = false; }
 
+    // ── PER-TWEAK APPLIED STATE ───────────────────────────────────────────────
+    // Persists which individual tweaks have been run across app restarts.
+    // Stored as a JSON array of TweakKey strings next to the exe.
+
+    public static class AppliedState
+    {
+        private static readonly string StateFile =
+            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "applied_tweaks.json");
+
+        private static HashSet<string> _applied = new(StringComparer.OrdinalIgnoreCase);
+
+        public static void Load()
+        {
+            try
+            {
+                if (!File.Exists(StateFile)) return;
+                var list = System.Text.Json.JsonSerializer.Deserialize<List<string>>(
+                    File.ReadAllText(StateFile));
+                if (list != null) _applied = new HashSet<string>(list, StringComparer.OrdinalIgnoreCase);
+            }
+            catch { }
+        }
+
+        public static bool IsApplied(string tweakKey) => _applied.Contains(tweakKey);
+
+        public static void MarkApplied(IEnumerable<string> tweakKeys)
+        {
+            foreach (var k in tweakKeys) _applied.Add(k);
+            Save();
+        }
+
+        public static void MarkUndone(IEnumerable<string> tweakKeys)
+        {
+            foreach (var k in tweakKeys) _applied.Remove(k);
+            Save();
+        }
+
+        private static void Save()
+        {
+            try
+            {
+                File.WriteAllText(StateFile,
+                    System.Text.Json.JsonSerializer.Serialize(_applied.ToList(),
+                        new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+            }
+            catch { }
+        }
+    }
+
+    // ── TWEAK PROFILE (EXPORT / IMPORT) ──────────────────────────────────────
+    // Saves and loads the set of checked TweakKeys as a named JSON profile.
+
+    public static class TweakProfile
+    {
+        public class Profile
+        {
+            public string       Name      { get; set; } = "My Profile";
+            public string       Version   { get; set; } = "1.1.0";
+            public string       CreatedAt { get; set; } = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            public List<string> TweakKeys { get; set; } = new();
+        }
+
+        public static void Export(IEnumerable<string> checkedKeys)
+        {
+            using var dlg = new SaveFileDialog
+            {
+                Title      = "Export Tweak Profile",
+                Filter     = "Tweak Profile (*.w11profile)|*.w11profile|JSON (*.json)|*.json",
+                DefaultExt = "w11profile",
+                FileName   = $"win11op_profile_{DateTime.Now:yyyyMMdd}"
+            };
+            if (dlg.ShowDialog() != DialogResult.OK) return;
+
+            var profile = new Profile { TweakKeys = checkedKeys.ToList() };
+            try
+            {
+                File.WriteAllText(dlg.FileName,
+                    System.Text.Json.JsonSerializer.Serialize(profile,
+                        new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+                MessageBox.Show($"Profile exported to:\n{dlg.FileName}",
+                    "Export Successful", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Export failed: {ex.Message}",
+                    "Export Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // Returns loaded TweakKeys on success, null on cancel/error
+        public static List<string> Import()
+        {
+            using var dlg = new OpenFileDialog
+            {
+                Title  = "Import Tweak Profile",
+                Filter = "Tweak Profile (*.w11profile)|*.w11profile|JSON (*.json)|*.json"
+            };
+            if (dlg.ShowDialog() != DialogResult.OK) return null;
+
+            try
+            {
+                var profile = System.Text.Json.JsonSerializer.Deserialize<Profile>(
+                    File.ReadAllText(dlg.FileName));
+                if (profile?.TweakKeys == null || profile.TweakKeys.Count == 0)
+                {
+                    MessageBox.Show("Profile is empty or invalid.",
+                        "Import Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return null;
+                }
+
+                int matched = profile.TweakKeys.Count(k =>
+                    TweakCatalog.All.Any(t => t.TweakKey == k));
+                MessageBox.Show(
+                    $"Profile loaded: \"{profile.Name}\"\n" +
+                    $"Created: {profile.CreatedAt}\n\n" +
+                    $"{matched} of {profile.TweakKeys.Count} tweaks matched this version.",
+                    "Import Successful", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                return profile.TweakKeys;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Import failed: {ex.Message}",
+                    "Import Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return null;
+            }
+        }
+    }
+
 public class MainForm : Form
     {
         private Panel _topBar;
@@ -528,6 +657,8 @@ public class MainForm : Form
         private FlatButton _runBtn;
         private FlatButton _undoBtn;
         private FlatButton _clearBtn;
+        private FlatButton _exportBtn;
+        private FlatButton _importBtn;
         private CheckBox   _restoreChk;
 
         private Panel _histPanel;
@@ -550,6 +681,47 @@ public class MainForm : Form
             PopulateGrid("All");
             UpdateSelCount();
             if (AdminWarning.Show) _adminBadge.Visible = true;
+            CheckWhatsNew();
+        }
+
+        private void CheckWhatsNew()
+        {
+            const string CurrentVersion = "1.1.0";
+            string versionFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "last_version.txt");
+
+            try
+            {
+                string lastVersion = File.Exists(versionFile)
+                    ? File.ReadAllText(versionFile).Trim()
+                    : "";
+
+                if (lastVersion != CurrentVersion)
+                {
+                    File.WriteAllText(versionFile, CurrentVersion);
+
+                    // Only show dialog if this isn't a completely fresh install
+                    // (fresh installs have no last_version.txt — we don't want to
+                    //  show "What's New" the very first time someone runs it)
+                    if (!string.IsNullOrEmpty(lastVersion))
+                    {
+                        var result = MessageBox.Show(
+                            $"Win11 Optimizer has been updated to v{CurrentVersion}!\n\n" +
+                            "Would you like to see what's new?",
+                            "What's New in v" + CurrentVersion,
+                            MessageBoxButtons.YesNo,
+                            MessageBoxIcon.Information,
+                            MessageBoxDefaultButton.Button1);
+
+                        if (result == DialogResult.Yes)
+                            Process.Start(new ProcessStartInfo
+                            {
+                                FileName       = "https://github.com/Corn-Studios/win11op/releases/tag/v" + CurrentVersion,
+                                UseShellExecute = true
+                            });
+                    }
+                }
+            }
+            catch { }
         }
 
 private void InitUI()
@@ -658,7 +830,7 @@ private void BuildTopBar()
             ghLink.FlatAppearance.BorderSize         = 0;
             ghLink.FlatAppearance.MouseOverBackColor = Theme.ACCENT_HOV;
             ghLink.Click += (s, e) => Process.Start(new ProcessStartInfo
-                { FileName = "https://github.com/ConnorCorn07/win11op", UseShellExecute = true });
+                { FileName = "https://github.com/Corn-Studios/win11op", UseShellExecute = true });
             _topBar.SizeChanged += (s, e) =>
                 ghLink.Location = new Point(_topBar.Width - ghLink.Width - 16, (_topBar.Height - ghLink.Height) / 2);
 
@@ -1187,9 +1359,9 @@ private static readonly string[] CategoryOrder =
                 {
                     var tile = new TweakTile(entry);
                     tile.IsChecked = entry.DefaultOn;
-                    // Mark already-applied tiles
-                    if (TweakEngine.HasBackup(entry.Category))
-                        tile.SetApplied(true);
+                    // Mark already-applied tiles (applied by app in a previous session)
+                    if (AppliedState.IsApplied(entry.TweakKey))
+                        tile.SetApplied(AppliedSource.AppliedByApp);
                     tile.CheckedChanged += (s, e_) => { UpdateSelCount(); SetStatus("Ready", Theme.TEXT_SEC); };
                     // Tooltip wiring
                     tile.MouseEnter += (s, e_) => ShowTooltip((TweakTile)s);
@@ -1206,6 +1378,9 @@ private static readonly string[] CategoryOrder =
 
             _tileGrid.ResumeLayout(true);
             UpdateSelCount();
+
+            // Kick off background live-system detection scan
+            _ = RunDetectionScanAsync();
         }
 
         private void SetAllInView(bool check)
@@ -1251,6 +1426,42 @@ private void ShowHistory()
             _histPanel.Visible  = false;
             _startupTab.Visible = true;
             _startupTab.Activate();
+        }
+
+        // Scans the live system state for each tile in the background.
+        // Tiles that are already applied by the app take priority; only
+        // tiles with no known state get checked against the live system.
+        private async Task RunDetectionScanAsync()
+        {
+            // Snapshot the current tile list so the scan isn't affected by
+            // the user switching categories mid-scan
+            var snapshot = _tiles.ToList();
+
+            await Task.Run(() =>
+            {
+                foreach (var tile in snapshot)
+                {
+                    // Already marked as applied by app — no need to overwrite
+                    if (AppliedState.IsApplied(tile.Entry.TweakKey)) continue;
+
+                    bool? detected = TweakDetector.Check(tile.Entry.TweakKey);
+
+                    if (detected == true)
+                    {
+                        // Also persist to AppliedState so it survives future sessions
+                        AppliedState.MarkApplied(new[] { tile.Entry.TweakKey });
+
+                        try
+                        {
+                            Invoke(new Action(() =>
+                            {
+                                tile.SetApplied(AppliedSource.DetectedOnSystem);
+                            }));
+                        }
+                        catch { /* Form may have closed */ }
+                    }
+                }
+            });
         }
 
         private void BuildHistoryContent()
@@ -1436,12 +1647,43 @@ private void BuildBottomBar()
                 { Size = new Size(70, 26) };
             logToggle.Click += (s, e) => ToggleLog();
 
+            _exportBtn = new FlatButton("↑ Export Profile", Theme.SURFACE2)
+                { Size = new Size(130, 36) };
+            _exportBtn.Click += (s, e) =>
+            {
+                var keys = _tiles.Where(t => t.IsChecked).Select(t => t.Entry.TweakKey);
+                TweakProfile.Export(keys);
+            };
+
+            _importBtn = new FlatButton("↓ Import Profile", Theme.SURFACE2)
+                { Size = new Size(130, 36) };
+            _importBtn.Click += (s, e) =>
+            {
+                var keys = TweakProfile.Import();
+                if (keys == null) return;
+                // Switch to All view so all tiles are visible
+                if (_activeCategory == "History" || _activeCategory == "Startup")
+                {
+                    _activeCategory = "All";
+                    RefreshSidebar();
+                    PopulateGrid("All");
+                }
+                ClearSearch();
+                var keySet = new HashSet<string>(keys, StringComparer.OrdinalIgnoreCase);
+                foreach (var t in _tiles)
+                    t.IsChecked = keySet.Contains(t.Entry.TweakKey);
+                SetStatus($"Profile imported — {keySet.Count} tweaks selected.", Theme.ACCENT);
+                UpdateSelCount();
+            };
+
             _bottomBar.SizeChanged += (s, e) =>
             {
                 int r = _bottomBar.Width - 16;
-                _runBtn.Location   = new Point(r - 160, 82);
-                _clearBtn.Location = new Point(r - 300, 82);
-                _undoBtn.Location  = new Point(r - 460, 82);
+                _runBtn.Location    = new Point(r - 160, 82);
+                _clearBtn.Location  = new Point(r - 300, 82);
+                _undoBtn.Location   = new Point(r - 460, 82);
+                _exportBtn.Location = new Point(r - 606, 82);
+                _importBtn.Location = new Point(r - 750, 82);
                 // Log button pinned top-right, progress bar stops before it
                 logToggle.Location = new Point(r - 76, 12);
                 _progOuter.Width   = Math.Max(200, r - 96);
@@ -1450,7 +1692,7 @@ private void BuildBottomBar()
             _bottomBar.Controls.AddRange(new Control[]
             {
                 _progOuter, _statusLabel, _selCountLabel,
-                _restoreChk, _undoBtn, _clearBtn, _runBtn, logToggle
+                _restoreChk, _undoBtn, _clearBtn, _exportBtn, _importBtn, _runBtn, logToggle
             });
         }
 
@@ -1704,8 +1946,11 @@ private async void OnRunClicked(object sender, EventArgs e)
             foreach (var t in selected)
             {
                 t.SetStatus(TileStatus.Done);
-                t.SetApplied(true);
+                t.SetApplied(AppliedSource.AppliedByApp);
             }
+
+            // Persist per-tweak applied state
+            AppliedState.MarkApplied(selected.Select(t => t.Entry.TweakKey));
 
             SetProgress(_totalTweaks, _totalTweaks);
             SetStatus($"Complete — {pass} succeeded, {fail} failed.",
@@ -1763,6 +2008,11 @@ private async void OnUndoClicked(object sender, EventArgs e)
             }
 
             SetStatus("Undo complete. Reboot recommended.", Theme.SUCCESS);
+            // Remove undone tweaks from persisted applied state
+            var undoneKeys = _tiles
+                .Where(t => t.IsChecked && undoCats.Contains(t.Entry.Category))
+                .Select(t => t.Entry.TweakKey);
+            AppliedState.MarkUndone(undoneKeys);
             UpdateSelCount();
         }
 
@@ -1801,15 +2051,16 @@ private void SetStatus(string msg, Color col = default)
 
     //  TILE STATUS ENUM
 
-    public enum TileStatus { None, Running, Done }
+    public enum TileStatus  { None, Running, Done }
+    public enum AppliedSource { None, AppliedByApp, DetectedOnSystem }
 
     public class TweakTile : Panel
     {
-        private bool       _checked;
-        private bool       _applied;           // was previously run
-        private TileStatus _status      = TileStatus.None;
-        private string     _statusText  = "";
-        private Color      _statusColor = Theme.TEXT_SEC;
+        private bool         _checked;
+        private AppliedSource _appliedSource = AppliedSource.None;
+        private TileStatus   _status      = TileStatus.None;
+        private string       _statusText  = "";
+        private Color        _statusColor = Theme.TEXT_SEC;
 
         public TweakEntry Entry { get; }
         public event EventHandler CheckedChanged;
@@ -1876,14 +2127,17 @@ private void SetStatus(string msg, Color col = default)
                     });
                 }
 
-                // "Already applied" indicator — subtle green dot + text bottom-left
-                if (_applied && _status == TileStatus.None)
+                // "Already applied" indicator — bottom-left dot + label
+                if (_appliedSource != AppliedSource.None && _status == TileStatus.None)
                 {
-                    using var dotBr  = new SolidBrush(Theme.SUCCESS);
+                    bool detected = _appliedSource == AppliedSource.DetectedOnSystem;
+                    Color dotColor = detected ? Theme.SKY_PURPLE : Theme.SUCCESS;
+                    string label   = "applied";
+                    using var dotBr  = new SolidBrush(dotColor);
                     using var txtFnt = new Font("Courier New", 6.5f);
-                    using var txtBr  = new SolidBrush(Color.FromArgb(80, Theme.SUCCESS.R, Theme.SUCCESS.G, Theme.SUCCESS.B));
+                    using var txtBr  = new SolidBrush(Color.FromArgb(80, dotColor.R, dotColor.G, dotColor.B));
                     g.FillEllipse(dotBr, 10, Height - 16, 6, 6);
-                    g.DrawString("applied", txtFnt, txtBr, new PointF(20, Height - 18));
+                    g.DrawString(label, txtFnt, txtBr, new PointF(20, Height - 18));
                 }
 
                 if (!string.IsNullOrEmpty(_statusText))
@@ -1955,9 +2209,9 @@ private void SetStatus(string msg, Color col = default)
             MouseLeave += (s, ev) => { if (!_checked) BackColor = Theme.CARD; };
         }
 
-        public void SetApplied(bool applied)
+        public void SetApplied(AppliedSource source)
         {
-            _applied = applied;
+            _appliedSource = source;
             Invalidate();
         }
 
@@ -2120,6 +2374,7 @@ internal static class GraphicsEx
 
                 WinVersion.Detect();
                 ChangeLog.Load();
+                AppliedState.Load();
 
                 if (!IsAdmin())
                 {
