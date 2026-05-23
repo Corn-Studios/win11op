@@ -43,72 +43,23 @@ namespace Win11Optimizer
     }
 
     // ── DPI scale helper ─────────────────────────────────────────────────────
-    //
-    //  Usage:  Dpi.S(16)   → returns 16 scaled to the current monitor DPI
-    //          Dpi.F(8.5f) → scales a font point-size (rarely needed; fonts
-    //                         already scale automatically in PerMonitorV2, but
-    //                         useful for hand-drawn geometry measured in points)
-    //
-    //  Call Dpi.Update(this) once in the MainForm constructor, then again
-    //  inside the DpiChanged handler so the scale factor stays in sync when
-    //  the window moves to a different monitor.
-    //
-    //  BASE_DPI is 96 — the Windows "100% scaling" reference DPI.
-
     public static class Dpi
     {
         private const float BASE_DPI = 96f;
-
-        /// <summary>Current DPI of the primary form's monitor (updated via <see cref="Update"/>).</summary>
         public static float Current { get; private set; } = BASE_DPI;
+        public static float Scale   => Current / BASE_DPI;
 
-        /// <summary>Scale factor relative to 96 DPI.  1.0 at 100%, 1.5 at 150%, etc.</summary>
-        public static float Scale => Current / BASE_DPI;
-
-        /// <summary>Scale an integer pixel value to the current DPI.</summary>
-        public static int S(int pixels) => (int)Math.Round(pixels * Scale);
-
-        /// <summary>Scale a float pixel value to the current DPI.</summary>
+        public static int   S(int pixels)   => (int)Math.Round(pixels * Scale);
         public static float S(float pixels) => pixels * Scale;
+        public static Size  S(Size sz)      => new Size(S(sz.Width), S(sz.Height));
+        public static Point S(Point pt)     => new Point(S(pt.X), S(pt.Y));
 
-        /// <summary>Scale a Size to the current DPI.</summary>
-        public static Size S(Size sz) => new Size(S(sz.Width), S(sz.Height));
-
-        /// <summary>Scale a Point to the current DPI.</summary>
-        public static Point S(Point pt) => new Point(S(pt.X), S(pt.Y));
-
-        /// <summary>
-        ///   Pull the current DPI from <paramref name="ctrl"/> (or its handle)
-        ///   and cache it.  Call this in the form constructor and again inside
-        ///   the <c>DpiChanged</c> handler.
-        /// </summary>
         public static void Update(Control ctrl)
         {
-            try
-            {
-                // DeviceDpi is exposed on Control in .NET 5+
-                Current = ctrl.DeviceDpi;
-            }
-            catch
-            {
-                // Fallback: read from a Graphics context on the control
-                try
-                {
-                    using var g = ctrl.CreateGraphics();
-                    Current = g.DpiX;
-                }
-                catch { /* leave Current unchanged */ }
-            }
+            try   { Current = ctrl.DeviceDpi; }
+            catch { try { using var g = ctrl.CreateGraphics(); Current = g.DpiX; } catch { } }
         }
-
-        /// <summary>
-        ///   Convenience overload — update from a raw DPI integer as supplied
-        ///   by the WinForms <c>DpiChangedEventArgs.DeviceDpiNew</c>.
-        /// </summary>
-        public static void Update(int newDpi)
-        {
-            if (newDpi > 0) Current = newDpi;
-        }
+        public static void Update(int newDpi) { if (newDpi > 0) Current = newDpi; }
     }
 
     public class TweakEntry
@@ -795,14 +746,8 @@ public class MainForm : Form
 
 private void InitUI()
         {
-            // Seed the Dpi helper from our handle before any layout runs.
-            // DeviceDpi is available once the handle is created; force it now.
             Dpi.Update(this);
-
-            // AutoScaleMode.None: we own all pixel values and scale them
-            // ourselves via Dpi.S().  Letting WinForms auto-scale on top of
-            // PerMonitorV2 causes double-scaling artefacts.
-            AutoScaleMode = AutoScaleMode.None;
+            AutoScaleMode   = AutoScaleMode.None;
 
             Text            = "Win11 Optimizer";
             Size            = new Size(Dpi.S(1200), Dpi.S(760));
@@ -832,35 +777,17 @@ private void InitUI()
             Controls.Add(_logPanel);
             BuildTooltip();
 
-            // PerMonitorV2: fired when the window is dragged to a monitor
-            // with a different DPI.  Rebuild all sized controls so they
-            // re-measure against the new scale factor.
             DpiChanged += (s, e) =>
             {
                 Dpi.Update(e.DeviceDpiNew);
-
-                // Scale the form itself to the suggested bounds Windows provides
-                // (this is the recommended way — better than re-computing manually)
                 if (e.SuggestedRectangle != Rectangle.Empty)
-                    SetBounds(e.SuggestedRectangle.X,
-                              e.SuggestedRectangle.Y,
-                              e.SuggestedRectangle.Width,
-                              e.SuggestedRectangle.Height);
-
+                    SetBounds(e.SuggestedRectangle.X, e.SuggestedRectangle.Y,
+                              e.SuggestedRectangle.Width, e.SuggestedRectangle.Height);
                 MinimumSize = new Size(Dpi.S(960), Dpi.S(620));
-
-                // Rebuild the panels whose sizes are computed once at
-                // construction time and won't respond to a Dock relayout alone.
                 RescalePanels();
             };
         }
 
-        /// <summary>
-        ///   Re-applies DPI-dependent sizes to the fixed-height chrome panels
-        ///   (top bar, bottom bar, sidebar, log panel) after a DPI change.
-        ///   Controls that use Dock = Fill reflow automatically; only the ones
-        ///   with explicit pixel heights/widths need to be touched here.
-        /// </summary>
         private void RescalePanels()
         {
             SuspendLayout();
@@ -1150,7 +1077,7 @@ private void BuildSearchBar()
             _searchBar = new Panel
             {
                 BackColor = Theme.SURFACE,
-                Height    = 56,
+                Height    = Dpi.S(88),
                 Dock      = DockStyle.Top,
             };
             _searchBar.Paint += (s, e) =>
@@ -1160,13 +1087,15 @@ private void BuildSearchBar()
                     _searchBar.Width, _searchBar.Height - 1);
             };
 
+            // ── Row 1: search box ────────────────────────────────────────────
+
             var searchIcon = new Label
             {
                 Text      = "🔍",
                 Font      = new Font("Segoe UI Emoji", 11f),
                 AutoSize  = false,
                 Size      = new Size(28, 32),
-                Location  = new Point(10, 10),
+                Location  = new Point(10, 8),
                 BackColor = Color.Transparent,
                 TextAlign = ContentAlignment.MiddleCenter
             };
@@ -1174,18 +1103,16 @@ private void BuildSearchBar()
             _searchBox = new TextBox
             {
                 Font        = new Font("Segoe UI", 10f),
-                ForeColor   = Theme.TEXT_PRI,
+                ForeColor   = Theme.TEXT_SEC,
                 BackColor   = Theme.CARD,
                 BorderStyle = BorderStyle.None,
-                Location    = new Point(42, 16),
-                Height      = 26,
-                Width       = 260,
+                Location    = new Point(42, 14),
+                Height      = 24,
+                Width       = 280,
                 Text        = "Search tweaks..."
             };
 
-            // Placeholder behaviour
             bool hasPlaceholder = true;
-            _searchBox.ForeColor = Theme.TEXT_SEC;
 
             _searchBox.Enter += (s, e) =>
             {
@@ -1215,20 +1142,23 @@ private void BuildSearchBar()
 
             _clearSearchBtn = new FlatButton("✕", Theme.SURFACE2)
             {
-                Size     = new Size(22, 22),
-                Location = new Point(306, 15),
-                Font     = new Font("Segoe UI", 8f),
+                Size      = new Size(22, 22),
+                Location  = new Point(326, 11),
+                Font      = new Font("Segoe UI", 8f),
                 ForeColor = Theme.TEXT_SEC,
                 Visible   = false
             };
             _clearSearchBtn.Click += (s, e) => ClearSearch();
 
-            var divider = new Panel
+            var rowDivider = new Panel
             {
                 BackColor = Theme.BORDER,
-                Size      = new Size(1, 32),
-                Location  = new Point(338, 10)
+                Bounds    = new Rectangle(0, 42, _searchBar.Width, 1),
+                Anchor    = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top
             };
+            _searchBar.SizeChanged += (s, e) => rowDivider.Width = _searchBar.Width;
+
+            // ── Row 2: preset strip (FlowLayoutPanel — auto-reflows, DPI-safe) ─
 
             var presetLbl = new Label
             {
@@ -1236,85 +1166,73 @@ private void BuildSearchBar()
                 Font      = new Font("Courier New", 6.5f, FontStyle.Bold),
                 ForeColor = Theme.ACCENT,
                 AutoSize  = true,
-                Location  = new Point(352, 5),
-                BackColor = Color.Transparent
+                Margin    = new Padding(8, 15, 4, 0),
+                BackColor = Color.Transparent,
             };
 
-            // Shared style helper
-            static void StylePreset(FlatButton b) {
-                b.FlatAppearance.BorderSize  = 1;
-                b.FlatAppearance.BorderColor = Color.FromArgb(204, 255, 0);   // lime border
-                b.FlatAppearance.MouseOverBackColor = Color.FromArgb(30, 204, 255, 0); // faint lime glow
+            var presetStrip = new FlowLayoutPanel
+            {
+                BackColor     = Color.Transparent,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents  = false,
+                Bounds        = new Rectangle(0, 43, _searchBar.Width, 44),
+                Anchor        = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top,
+                Padding       = new Padding(0),
+            };
+            _searchBar.SizeChanged += (s, e) => presetStrip.Width = _searchBar.Width;
+
+            static void StylePreset(FlatButton b)
+            {
+                b.FlatAppearance.BorderSize         = 1;
+                b.FlatAppearance.BorderColor        = Color.FromArgb(204, 255, 0);
+                b.FlatAppearance.MouseOverBackColor = Color.FromArgb(30, 204, 255, 0);
             }
 
-            var presetRecommended = new FlatButton("⭐ Recommended", Theme.SURFACE2)
+            FlatButton MakePreset(string label, string key)
             {
-                Size      = new Size(138, 28),
-                Location  = new Point(352, 20),
-                Font      = new Font("Segoe UI", 8.5f),
-                ForeColor = Theme.ACCENT
-            };
-            StylePreset(presetRecommended);
-            presetRecommended.Click += (s, e) => ApplyPreset("Recommended");
+                var b = new FlatButton(label, Theme.SURFACE2)
+                {
+                    AutoSize  = false,
+                    Size      = new Size(TextRenderer.MeasureText(label,
+                                    new Font("Segoe UI", 8.5f)).Width + 20, 28),
+                    Margin    = new Padding(0, 7, 4, 0),
+                    Font      = new Font("Segoe UI", 8.5f),
+                    ForeColor = Theme.ACCENT
+                };
+                StylePreset(b);
+                b.Click += (s, e) => ApplyPreset(key);
+                return b;
+            }
 
-            var presetGaming = new FlatButton("🎮 Gaming PC", Theme.SURFACE2)
-            {
-                Size      = new Size(110, 28),
-                Location  = new Point(498, 20),
-                Font      = new Font("Segoe UI", 8.5f),
-                ForeColor = Theme.ACCENT
-            };
-            StylePreset(presetGaming);
-            presetGaming.Click += (s, e) => ApplyPreset("Gaming");
-
-            var presetPrivacy = new FlatButton("🔒 Privacy", Theme.SURFACE2)
-            {
-                Size      = new Size(90, 28),
-                Location  = new Point(616, 20),
-                Font      = new Font("Segoe UI", 8.5f),
-                ForeColor = Theme.ACCENT
-            };
-            StylePreset(presetPrivacy);
-            presetPrivacy.Click += (s, e) => ApplyPreset("Privacy");
-
-            var presetSecurity = new FlatButton("🛡 Security", Theme.SURFACE2)
-            {
-                Size      = new Size(92, 28),
-                Location  = new Point(714, 20),
-                Font      = new Font("Segoe UI", 8.5f),
-                ForeColor = Theme.ACCENT
-            };
-            StylePreset(presetSecurity);
-            presetSecurity.Click += (s, e) => ApplyPreset("Security");
-
-            var presetMinimal = new FlatButton("🪶 Minimal", Theme.SURFACE2)
-            {
-                Size      = new Size(84, 28),
-                Location  = new Point(814, 20),
-                Font      = new Font("Segoe UI", 8.5f),
-                ForeColor = Theme.ACCENT
-            };
-            StylePreset(presetMinimal);
-            presetMinimal.Click += (s, e) => ApplyPreset("Minimal");
+            presetStrip.Controls.Add(presetLbl);
+            presetStrip.Controls.Add(MakePreset("⭐ Recommended",  "Recommended"));
+            presetStrip.Controls.Add(MakePreset("🎮 Gaming PC",    "Gaming"));
+            presetStrip.Controls.Add(MakePreset("🔒 Privacy",      "Privacy"));
+            presetStrip.Controls.Add(MakePreset("🛡 Security",     "Security"));
+            presetStrip.Controls.Add(MakePreset("🪶 Minimal",      "Minimal"));
+            presetStrip.Controls.Add(MakePreset("💻 Laptop",       "Laptop"));
+            presetStrip.Controls.Add(MakePreset("🧹 Clean Install", "CleanInstall"));
+            presetStrip.Controls.Add(MakePreset("🔬 Dev Machine",  "DevMachine"));
 
             // Nuclear stays red — intentionally different to signal danger
             var presetNuclear = new FlatButton("☢ Nuclear", Color.FromArgb(45, 20, 20))
             {
-                Size      = new Size(88, 28),
-                Location  = new Point(906, 20),
+                AutoSize  = false,
+                Size      = new Size(TextRenderer.MeasureText("☢ Nuclear",
+                                new Font("Segoe UI", 8.5f)).Width + 20, 28),
+                Margin    = new Padding(0, 7, 8, 0),
                 Font      = new Font("Segoe UI", 8.5f),
                 ForeColor = Theme.DANGER
             };
-            presetNuclear.FlatAppearance.BorderSize  = 1;
-            presetNuclear.FlatAppearance.BorderColor = Color.FromArgb(100, 40, 40);
+            presetNuclear.FlatAppearance.BorderSize         = 1;
+            presetNuclear.FlatAppearance.BorderColor        = Color.FromArgb(100, 40, 40);
             presetNuclear.FlatAppearance.MouseOverBackColor = Color.FromArgb(60, 30, 30);
             presetNuclear.Click += (s, e) => ApplyPreset("Nuclear");
+            presetStrip.Controls.Add(presetNuclear);
 
             _searchBar.Controls.AddRange(new Control[]
             {
-                searchIcon, _searchBox, _clearSearchBtn, divider,
-                presetLbl, presetRecommended, presetGaming, presetPrivacy, presetSecurity,
-                presetMinimal, presetNuclear
+                searchIcon, _searchBox, _clearSearchBtn, rowDivider, presetStrip
             });
         }
 
@@ -1440,6 +1358,57 @@ private void ApplyPreset(string preset)
                             "Priv_Feedback" or "Priv_AppTracking" or "Priv_Recall" or
                             "Perf_StartupDelay" or "Perf_VisualFX" or "Priv_CloudContent";
                     SetStatus("Preset applied: Minimal — safe UI & privacy tweaks only", Theme.TEXT_SEC);
+                    break;
+
+                case "Laptop":
+                    foreach (var t in _tiles)
+                        t.IsChecked = (t.Entry.DefaultOn
+                                   || t.Entry.Category == "Privacy"
+                                   || t.Entry.Category == "Responsiveness"
+                                   || t.Entry.Category == "Security")
+                                   && t.Entry.TweakKey is not (
+                                       "Perf_PowerPlan"
+                                    or "Perf_Hibernate"
+                                    or "Perf_MemCompression"
+                                    or "Perf_PowerThrottle"
+                                    or "Adv_DynamicTick"
+                                    or "Game_GPUPower"
+                                    or "Game_HAGS");
+                    SetStatus("Preset applied: Laptop — battery-safe privacy & responsiveness tweaks", Color.FromArgb(56, 189, 248));
+                    break;
+
+                case "CleanInstall":
+                    foreach (var t in _tiles)
+                        t.IsChecked = t.Entry.Category == "Bloatware"
+                                   || t.Entry.Category == "Privacy"
+                                   || t.Entry.TweakKey is
+                                       "Sec_Defender" or "Sec_NetBIOS" or "Sec_RDP"
+                                    or "Resp_WinTips" or "Resp_SuggestedContent"
+                                    or "Perf_StartupDelay";
+                    SetStatus("Preset applied: Clean Install — bloatware removed, telemetry killed, baseline secured", Color.FromArgb(52, 211, 153));
+                    break;
+
+                case "DevMachine":
+                    foreach (var t in _tiles)
+                        t.IsChecked = (t.Entry.Category == "Performance"
+                                   || t.Entry.Category == "Responsiveness"
+                                   || t.Entry.Category == "Network"
+                                   || t.Entry.TweakKey is
+                                       "Adv_ProcessorScheduling" or "Adv_CPUThrottle"
+                                    or "Adv_DynamicTick"         or "Adv_TRIM"
+                                    or "Adv_Animations"          or "Priv_Telemetry"
+                                    or "Priv_TelemetryTasks"     or "Priv_DiagTrack"
+                                    or "Priv_Feedback"           or "Priv_WER"
+                                    or "Game_CPUPriority")
+                                   && t.Entry.TweakKey is not (
+                                       "Perf_WSearch"
+                                    or "Perf_Hibernate"
+                                    or "Game_DVR"
+                                    or "Game_HAGS"
+                                    or "Game_FSO"
+                                    or "Game_GameMode"
+                                    or "Game_NvidiaTelemetry");
+                    SetStatus("Preset applied: Dev Machine — max performance, keeps Search & Hibernate", Color.FromArgb(167, 139, 250));
                     break;
             }
 
@@ -1894,7 +1863,7 @@ private void BuildTooltip()
             _tooltip = new Panel
             {
                 BackColor = Color.FromArgb(13, 12, 28),
-                Size      = new Size(Dpi.S(300), 0),   // height set dynamically
+                Size      = new Size(Dpi.S(300), 0),
                 Visible   = false,
                 Padding   = new Padding(Dpi.S(12))
             };
@@ -2488,10 +2457,6 @@ internal static class GraphicsEx
         {
             try
             {
-                // DPI awareness is declared in app.manifest (PerMonitorV2) so Windows
-                // sets the DPI context before the process starts.  The programmatic
-                // call is kept as a belt-and-suspenders fallback for hosts that strip
-                // the manifest (e.g. some CI runners and older deployment tools).
                 Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
