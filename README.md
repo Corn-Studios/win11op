@@ -1,70 +1,167 @@
 # ⚡ Win11 Optimizer
 
 > A clean, open-source Windows 10/11 optimizer built in C# / WinForms.  
-> Designed to be dropped onto a fresh Windows install and run once to apply performance, privacy, gaming, network, and security tweaks — with full per-tweak undo support.
+> Drop it on a fresh Windows install, run it once as Administrator, and apply exactly the tweaks you want — with full per-tweak undo support.
 
-**Version:** `1.1.0`  
+**Version:** `1.2.0`  
 **Platform:** Windows 10 / 11 (64-bit)  
-**Runtime:** .NET 10 Desktop Runtime  
+**Runtime:** Self-contained — no .NET install required  
 **License:** MIT
-
----
-
-## What's New in v1.1.0
-
-### 🔍 Live System State Detection
-Win11 Optimizer now scans your system on startup and automatically detects tweaks that are already applied — even if you set them up manually before ever running the app. Detected tweaks show a purple **applied** indicator so you know exactly what's already done before you run anything.
-
-### 💾 Per-Tweak Applied State Persistence
-Applied state is now tracked at the individual tweak level, not just per category. Every tweak you apply is remembered across app restarts via `applied_tweaks.json`. Returning to the app after a reboot shows exactly which tweaks were already run.
-
-### 📦 Export & Import Tweak Profiles
-Save your current tweak selection to a `.w11profile` file and load it back on any machine. Profiles include a name, creation timestamp, and version — and the importer reports how many tweaks matched your current version when loading an older profile.
-
-### 🆕 What's New Dialog
-Win11 Optimizer now detects version changes on launch and offers to open the release notes on GitHub — so you always know what changed without having to go looking.
-
-### 🔧 Bug Fixes
-- Fixed GitHub button linking to the old personal repo instead of the Corn Studios org
-- Fixed `StartupApproved\Run32` registry key used for system startup entries — was silently failing to disable 64-bit HKLM startup entries; now correctly targets `StartupApproved\Run`
-- Fixed `ImplicitUsings` mismatch in the project file
-
-### ⚙ .NET 10 Migration
-Upgraded from .NET 8 to .NET 10.
 
 ---
 
 ## Features
 
-| Category | What it does |
-|---|---|
-| ⚡ Performance | High performance power plan, disables SysMain & Windows Search, NTFS optimizations, removes startup delay, best performance visual mode, sets timer resolution to 0.5ms via `timeBeginPeriod` |
-| 🔒 Privacy & Telemetry | Disables all telemetry services and scheduled tasks, removes advertising ID, disables Bing/Cortana in Start, blocks activity feed and location tracking, disables Windows Recall (Copilot+ AI screenshot), removes Chat/Teams taskbar icon, blocks 35 Microsoft telemetry domains in the hosts file |
-| 🖥 Responsiveness | Instant menus, faster shutdown timers, high-resolution system clock, disables Windows Tips and suggested content |
-| 🎮 Gaming | Enables HAGS & Game Mode, disables mouse acceleration, boosts foreground CPU priority, disables Game DVR, disables fullscreen optimizations, sets GPU power policy to Prefer Maximum Performance, disables NVIDIA telemetry services |
-| 🌐 Network | Disables Nagle's Algorithm, enables RSS, TCP auto-tuning, removes network throttling index, enables DNS over HTTPS via Cloudflare 1.1.1.1 |
-| 🗑 Bloatware Removal | Removes pre-installed Microsoft and third-party bloat (Bing apps, Xbox overlays, TikTok, LinkedIn, etc.) from both user and provisioned packages |
-| 🔐 Security Hardening | Disables AutoRun/AutoPlay on all drive types, disables Remote Desktop (RDP), disables SMBv1, disables NetBIOS over TCP/IP, enforces Windows Defender real-time protection |
-| ⚠ Advanced Tweaks | CPU scheduler tuning (Win32PrioritySeparation), disable dynamic tick, disable CPU throttling for background processes, ensure SSD TRIM is enabled, aggressive animation disabling |
-| 🚀 Startup Manager | View, enable, disable, and delete startup entries from registry and startup folders |
+### 🔍 Live System State Detection
+Win11 Optimizer scans your system on startup and automatically detects tweaks that are already applied — even ones you configured manually before ever running the app. Detected tweaks show a purple **applied** indicator so you know what's already done before running anything.
 
-### Per-Tweak Undo
-Every registry change is backed up before being applied. After running tweaks, the **↩ Undo Selected** button in the bottom bar lets you fully restore any category to its pre-tweak state. Backups persist across app restarts via `tweaks_backup.json`.
+### 💾 Per-Tweak Applied State Persistence
+Applied state is tracked at the individual tweak level and remembered across app restarts via `applied_tweaks.json`. Returning after a reboot shows exactly which tweaks were already run.
 
-### Tweak Profiles
-Save and load your tweak selection as a `.w11profile` file using the **↑ Export Profile** and **↓ Import Profile** buttons in the bottom bar. Useful for setting up multiple machines or sharing a config.
+### 📦 Tweak Profiles (Export & Import)
+Save your current tweak selection to a `.w11profile` file and load it on any machine. Profiles include a name, creation timestamp, and version — the importer reports how many tweaks matched when loading a profile from an older version.
+
+### 🚀 Startup Manager
+A dedicated tab to view, enable, disable, and delete startup entries from both the registry and startup folders.
+
+### 🆕 What's New Dialog
+Win11 Optimizer detects version changes on launch and offers to open the release notes on GitHub, so you always know what changed.
+
+### ↩ Per-Tweak Undo
+Every registry change is backed up before being applied. The **↩ Undo Selected** button in the bottom bar fully restores any category to its pre-tweak state. Backups persist across app restarts via `tweaks_backup.json`.
+
+### ⭐ Presets
+One-click presets to quickly select tweaks for common configurations:
+
+| Preset | Description |
+|--------|-------------|
+| ⭐ Recommended | Safe default-on tweaks only |
+| 🎮 Gaming PC | Recommended + Gaming + Network |
+| 🔒 Privacy | Recommended + all Privacy tweaks |
+| 🛡 Security | Recommended + all Security tweaks |
+| 🪶 Minimal | Conservative subset of safe tweaks |
+| 💻 Laptop | Privacy & responsiveness tweaks, excludes power/battery changes |
+| 🧹 Clean Install | Bloatware + Privacy + security baseline |
+| 🔬 Dev Machine | Performance + Network + advanced CPU tweaks |
+| ☢ Nuclear | Everything except Bloatware & Advanced |
+
+---
+
+## Tweak Categories
+
+### ⚡ Performance
+| Tweak | What It Does |
+|-------|-------------|
+| High Performance Power Plan | Switches to the maximum performance power plan |
+| Disable Power Throttling | Prevents Windows throttling background CPU usage |
+| Disable SysMain (Superfetch) | Stops RAM preloading — negligible benefit on SSDs |
+| Disable Windows Search Indexer | Removes background disk I/O from search indexing |
+| Remove Startup Delay | Eliminates the artificial Explorer startup pause |
+| Visual Effects: Best Performance | Turns off animations, shadows, and fancy rendering |
+| Disable NTFS Last-Access Timestamps | Reduces filesystem writes on every file read |
+| Disable 8.3 Filenames | Removes legacy short filename generation on NTFS |
+| Disable Hibernation | Frees several GB of disk space, speeds shutdown |
+| Disable Memory Compression | Reduces CPU overhead; also disables page combining |
+| Set Timer Resolution to 0.5ms | Calls `timeBeginPeriod(1)` for sub-ms scheduler ticks |
+
+### 🔒 Privacy & Telemetry
+| Tweak | What It Does |
+|-------|-------------|
+| Disable Telemetry | Blocks Microsoft data collection at the registry level |
+| Disable DiagTrack Service | Stops Connected User Experiences & related telemetry services |
+| Disable Advertising ID | Prevents apps from accessing your ad tracking ID |
+| Disable Bing in Start Menu | Removes web search results from the Start search bar |
+| Disable Cortana Consent | Turns off Cortana data collection |
+| Disable Activity Feed | Stops Windows logging app and file activity history |
+| Disable Location Tracking | Blocks apps from accessing your physical location |
+| Block App Camera Access | Prevents UWP apps from using the webcam by default |
+| Disable Windows Error Reporting | Stops crash dumps and disables the WER upload queue task |
+| Disable SmartScreen (Explorer) | Removes SmartScreen cloud checks in File Explorer |
+| Disable Scheduled Telemetry Tasks | Kills CEIP, AppraiserV2, DiskDiag, DiagnosticInvoker, push notification, and WindowsUpdate app auto-update tasks |
+| Disable App Launch Tracking | Stops Windows logging which apps you open and when |
+| Disable Feedback Requests | Prevents Windows asking you to rate features |
+| Disable Chat / Teams Taskbar Icon | Removes the Teams/Chat icon from the taskbar |
+| Disable Windows Recall | Kills the AI screenshot feature on Copilot+ PCs (no-op otherwise) |
+| Disable Cloud Content & Delivery Manager | Kills Spotlight lock screen ads, silent app installs, OEM app promotions, and Start suggestions |
+| Block Telemetry Hosts | Adds 35 Microsoft telemetry domains to the hosts file (`0.0.0.0`) |
+
+### 🖥 Responsiveness
+| Tweak | What It Does |
+|-------|-------------|
+| Instant Menu Show | Sets menu open delay to 0ms |
+| Fast App Kill Timeout | Reduces wait before force-killing frozen apps |
+| Fast Service Kill Timeout | Cuts shutdown wait for slow-stopping services |
+| Auto End Tasks on Shutdown | Automatically kills hung apps instead of prompting |
+| Platform Tick (High-Res Timer) | Forces constant-rate platform tick + disables HPET override |
+| Disable Windows Tips | Stops "Did you know..." popups and suggestions |
+| Disable Suggested Content | Removes app install suggestions from the Start menu |
+| Verbose Boot/Shutdown Status | Shows real service names during boot/shutdown instead of a spinner |
+
+### 🎮 Gaming
+| Tweak | What It Does |
+|-------|-------------|
+| Enable HAGS | Hardware-Accelerated GPU Scheduling — reduces GPU latency |
+| Enable Game Mode | Tells Windows to prioritize foreground game processes |
+| Disable Mouse Acceleration | Removes pointer precision for 1:1 raw mouse input |
+| CPU Foreground Priority Boost | Increases CPU time slice for the active window/game |
+| Disable Game DVR / Capture | Turns off Xbox Game Bar background recording |
+| Disable Fullscreen Optimisations | Forces exclusive fullscreen for lower input latency |
+| GPU Power: Prefer Maximum Performance | Sets D3D power policy to never downclock the GPU |
+| Disable NVIDIA Telemetry Services | Stops NvTelemetryContainer & NvDisplayContainerLS |
+
+### 🌐 Network
+| Tweak | What It Does |
+|-------|-------------|
+| Disable Nagle's Algorithm | Reduces TCP packet buffering — lowers game ping |
+| Enable Receive-Side Scaling | Spreads network processing across CPU cores |
+| TCP Auto-Tuning: Normal | Enables adaptive TCP receive buffer scaling |
+| Disable Network Throttling Index | Removes multimedia network rate caps |
+| Max Multimedia Responsiveness | `SystemResponsiveness = 0` + tunes MMCSS Games & Pro Audio task priorities |
+| Disable Large Send Offload (LSO) | Disables LSO v2 on all physical adapters — reduces NIC-driver jitter |
+| Reduce TCP TIME_WAIT Delay | Cuts TIME_WAIT hold from 240s to 30s — frees ports faster |
+| DNS over HTTPS (Cloudflare 1.1.1.1) | Enables DoH via Windows DNS Client, routes queries encrypted |
+
+### 🗑 Bloatware Removal
+Removes pre-installed Microsoft and third-party UWP packages from both user and provisioned scopes, including: Bing News & Weather, Zune Music/Video, Solitaire Collection, Windows Maps, Phone Link, Clipchamp, Xbox apps & overlays, third-party ad tiles (LinkedIn, Disney, Spotify, TikTok, Instagram), Office Hub & OneNote, 3D Viewer & Print 3D.
+
+> ⚠ Bloatware removal cannot be undone — removed apps must be reinstalled from the Microsoft Store.
+
+### 🔐 Security Hardening
+| Tweak | What It Does |
+|-------|-------------|
+| Disable AutoRun / AutoPlay | Blocks `autorun.inf` and AutoPlay on all drive types |
+| Disable Remote Desktop (RDP) | Refuses all inbound RDP connections |
+| Disable SMBv1 | Removes the WannaCry/EternalBlue-vulnerable protocol |
+| Disable NetBIOS over TCP/IP | Stops NetBIOS broadcasts — prevents NBNS poisoning |
+| Ensure Defender Real-Time Protection | Forces Defender real-time monitoring ON via policy + cmdlet |
+
+### ⚠ Advanced Tweaks
+Lower-level tweaks for power users. Off by default.
+
+| Tweak | What It Does |
+|-------|-------------|
+| Processor Scheduling: Programs | `Win32PrioritySeparation = 38` — max foreground CPU boost |
+| Disable Dynamic Tick | Forces constant high-res IRQ8 timer, reduces micro-stutter |
+| Disable CPU Throttling | Prevents Windows pulling background process CPU clocks |
+| Ensure SSD TRIM Enabled | Sets `disabledeletenotify = 0` — keeps SSD write speeds consistent |
+| Aggressive Animation Disabling | Kills `UserPreferencesMask`, TaskbarAnim, MinAnimate bits |
+| Disable CPU Core Parking | Forces all cores active via `CPMINCORES = 100` — prevents park-induced stutter |
+| Enable MSI Mode (GPU) | Switches GPU to Message Signaled Interrupts — reduces DPC latency |
+| IRQ Affinity — Spread GPU Interrupts | Spreads MSI-X GPU interrupts across all P-cores |
+| TSC Sync Policy: Legacy | Reduces scheduling micro-jitter on multi-core systems |
+| Enable x2APIC Mode | Improves interrupt delivery on many-core CPUs (HEDT, Ryzen) |
 
 ---
 
 ## Requirements
 
 - Windows 10 or 11 (64-bit)
-- [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0)
 - Administrator privileges (required for registry, service, and hosts file changes)
+- No .NET runtime required — the exe is self-contained
 
 ---
 
-## Releases
+## Installation
 
 1. Go to [Releases](https://github.com/Corn-Studios/win11op/releases) and download the latest `.exe`
 2. Right-click → **Run as Administrator**
@@ -76,28 +173,29 @@ Save and load your tweak selection as a `.w11profile` file using the **↑ Expor
    ```
    git clone https://github.com/Corn-Studios/win11op.git
    ```
-3. Build:
+3. Publish (self-contained single exe):
    ```
    cd win11op/buildwinop
-   dotnet build -c Release
+   dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -o ./publish
    ```
 4. Run as Administrator:
    ```
-   bin\Release\net10.0-windows\Win11Optimizer.exe
+   publish\Win11Optimizer.exe
    ```
 
 ---
 
 ## Notes
 
-- A **reboot is required** after applying tweaks for HAGS, timer resolution, and SMBv1 changes to take full effect
-- Bloatware removal cannot be undone: removed apps must be reinstalled from the Microsoft Store
+- A **reboot is required** after applying tweaks for HAGS, timer resolution, SMBv1, TSC sync, x2APIC, and core parking changes to take full effect
+- Bloatware removal cannot be undone — reinstall from the Microsoft Store if needed
 - All registry changes are backed up to `tweaks_backup.json` next to the exe before being applied
 - Applied tweak state is tracked per-tweak in `applied_tweaks.json` next to the exe
-- Windows Recall tweaks are a no-op on non-Copilot+ PCs: safe to apply on any hardware
+- Windows Recall tweaks are a no-op on non-Copilot+ PCs — safe to apply on any hardware
 - NVIDIA telemetry tweaks are a no-op if NVIDIA drivers are not installed
 - The hosts file block list is cleanly removed by the Privacy undo function
 - Startup folder shortcuts cannot be disabled (Windows limitation), only deleted
+- MSI Mode and IRQ Affinity tweaks target the primary GPU adapter slot (0000) only
 
 ---
 
@@ -109,5 +207,5 @@ MIT — see [LICENSE](LICENSE)
 
 ## AI Disclosure
 
-> ⚠ This project contains code written with the assistance of **Claude by Anthropic** (claude.ai).  All readmes were made by Claude Sonnet, as I am too lazy to make publishes this good
+> ⚠ This project contains code written with the assistance of **Claude by Anthropic** (claude.ai).  All readmes were made by Claude Sonnet, as I am too lazy to make publishes this good.  
 > The **Startup Manager** feature and the **v1.0.0 UI rework** was developed with Claude Sonnet. All code has been reviewed and tested by me.
