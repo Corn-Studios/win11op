@@ -648,7 +648,8 @@ public class MainForm : Form
         private static readonly string[] SidebarCategories =
         {
             "All", "Performance", "Privacy", "Responsiveness",
-            "Gaming", "Network", "Bloatware", "Security", "Advanced", "Startup", "History"
+            "Gaming", "Network", "Bloatware", "Security", "Advanced",
+            "Startup", "History", "Driver Cleanup", "Disk Cleanup"
         };
 
         private static readonly Dictionary<string, string> CatEmoji = new()
@@ -664,6 +665,8 @@ public class MainForm : Form
             ["Security"]       = "🔒",
             ["Startup"]        = "🚀",
             ["History"]        = "📋",
+            ["Driver Cleanup"] = "🔧",
+            ["Disk Cleanup"]   = "🧹",
         };
 
         private string _activeCategory = "All";
@@ -683,7 +686,9 @@ public class MainForm : Form
 
         private Panel _histPanel;
 
-        private StartupTab _startupTab;
+        private StartupTab       _startupTab;
+        private DriverCleanupTab _driverTab;
+        private DiskCleanupTab   _diskCleanupTab;
 
         private RichTextBox _logBox;
 
@@ -923,7 +928,7 @@ private void BuildTopBar()
             int y = Dpi.S(38);
             foreach (var cat in SidebarCategories)
             {
-                if (cat == "Startup" || cat == "History")
+                if (cat == "Startup" || cat == "History" || cat == "Driver Cleanup")
                 {
                     var div = new Panel
                     {
@@ -1013,9 +1018,11 @@ private void BuildTopBar()
                 _activeCategory = cat;
                 ClearSearch();
                 RefreshSidebar();
-                if      (cat == "History") ShowHistory();
-                else if (cat == "Startup") ShowStartup();
-                else                       PopulateGrid(cat);
+                if      (cat == "History")        ShowHistory();
+                else if (cat == "Startup")        ShowStartup();
+                else if (cat == "Driver Cleanup")  ShowDriverCleanup();
+                else if (cat == "Disk Cleanup")    ShowDiskCleanup();
+                else                               PopulateGrid(cat);
             };
             return btn;
         }
@@ -1064,10 +1071,14 @@ private void BuildMainArea()
                 Visible    = false
             };
 
-            _startupTab = new StartupTab();
+            _startupTab     = new StartupTab();
+            _driverTab      = new DriverCleanupTab();
+            _diskCleanupTab = new DiskCleanupTab();
 
             _mainArea.Controls.Add(_histPanel);
             _mainArea.Controls.Add(_startupTab);
+            _mainArea.Controls.Add(_driverTab);
+            _mainArea.Controls.Add(_diskCleanupTab);
             _mainArea.Controls.Add(_tileGrid);
             _mainArea.Controls.Add(_searchBar); // add last so it docks on top
         }
@@ -1296,7 +1307,7 @@ private void ApplySearchFilter()
 private void ApplyPreset(string preset)
         {
             // If we're on History, switch to All first
-            if (_activeCategory == "History" || _activeCategory == "Startup")
+            if (_activeCategory == "History" || _activeCategory == "Startup" || _activeCategory == "Driver Cleanup" || _activeCategory == "Disk Cleanup")
             {
                 _activeCategory = "All";
                 RefreshSidebar();
@@ -1423,10 +1434,12 @@ private static readonly string[] CategoryOrder =
 
         private void PopulateGrid(string filter)
         {
-            _histPanel.Visible  = false;
-            _startupTab.Visible = false;
-            _tileGrid.Visible   = true;
-            _searchBar.Visible  = true;
+            _histPanel.Visible      = false;
+            _startupTab.Visible     = false;
+            _driverTab.Visible      = false;
+            _diskCleanupTab.Visible = false;
+            _tileGrid.Visible       = true;
+            _searchBar.Visible      = true;
 
             _tileGrid.SuspendLayout();
             _tileGrid.Controls.Clear();
@@ -1505,20 +1518,46 @@ private static readonly string[] CategoryOrder =
 
 private void ShowHistory()
         {
-            _tileGrid.Visible   = false;
-            _searchBar.Visible  = false;
-            _startupTab.Visible = false;
-            _histPanel.Visible  = true;
+            _tileGrid.Visible       = false;
+            _searchBar.Visible      = false;
+            _startupTab.Visible     = false;
+            _driverTab.Visible      = false;
+            _diskCleanupTab.Visible = false;
+            _histPanel.Visible      = true;
             BuildHistoryContent();
         }
 
         private void ShowStartup()
         {
-            _tileGrid.Visible   = false;
-            _searchBar.Visible  = false;
-            _histPanel.Visible  = false;
-            _startupTab.Visible = true;
+            _tileGrid.Visible       = false;
+            _searchBar.Visible      = false;
+            _histPanel.Visible      = false;
+            _driverTab.Visible      = false;
+            _diskCleanupTab.Visible = false;
+            _startupTab.Visible     = true;
             _startupTab.Activate();
+        }
+
+        private void ShowDriverCleanup()
+        {
+            _tileGrid.Visible       = false;
+            _searchBar.Visible      = false;
+            _histPanel.Visible      = false;
+            _startupTab.Visible     = false;
+            _diskCleanupTab.Visible = false;
+            _driverTab.Visible      = true;
+            _driverTab.Activate();
+        }
+
+        private void ShowDiskCleanup()
+        {
+            _tileGrid.Visible       = false;
+            _searchBar.Visible      = false;
+            _histPanel.Visible      = false;
+            _startupTab.Visible     = false;
+            _driverTab.Visible      = false;
+            _diskCleanupTab.Visible = true;
+            _diskCleanupTab.Activate();
         }
 
         // Scans the live system state for each tile in the background.
@@ -1755,7 +1794,7 @@ private void BuildBottomBar()
                 var keys = TweakProfile.Import();
                 if (keys == null) return;
                 // Switch to All view so all tiles are visible
-                if (_activeCategory == "History" || _activeCategory == "Startup")
+                if (_activeCategory == "History" || _activeCategory == "Startup" || _activeCategory == "Driver Cleanup" || _activeCategory == "Disk Cleanup")
                 {
                     _activeCategory = "All";
                     RefreshSidebar();

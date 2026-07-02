@@ -3,7 +3,7 @@
 > A clean, open-source Windows 10/11 optimizer built in C# / WinForms.  
 > Drop it on a fresh Windows install, run it once as Administrator, and apply exactly the tweaks you want — with full per-tweak undo support.
 
-**Version:** `1.2.0`  
+**Version:** `1.3.0`  
 **Platform:** Windows 10 / 11 (64-bit)  
 **Runtime:** Self-contained — no .NET install required  
 **License:** MIT
@@ -23,6 +23,12 @@ Save your current tweak selection to a `.w11profile` file and load it on any mac
 
 ### 🚀 Startup Manager
 A dedicated tab to view, enable, disable, and delete startup entries from both the registry and startup folders.
+
+### 🔧 Driver Cleanup
+Scans the Windows Driver Store (`pnputil /enum-drivers`) and cross-references every published driver package against the drivers actually bound to a device right now. Packages that are currently in use are locked and can't be selected; unused/orphaned packages (old GPU driver versions left behind by updates, drivers for devices you no longer own, etc.) can be selected and removed in a batch, with an estimated space freed before you confirm.
+
+### 🧹 Disk Cleanup
+A thorough cleanup pass across the categories the built-in Disk Cleanup tool misses or hides: Windows Update cache, Delivery Optimization cache, temp files, DirectX shader cache, WER/crash dumps, thumbnail cache, prefetch files, the Recycle Bin, `Windows.old`, and Application/System event logs. Each category is scanned for reclaimable space before you pick what to clean, and is flagged **Safe** or **Caution** — Caution items (Recycle Bin, `Windows.old`, Prefetch, Event Logs) are off by default.
 
 ### 🆕 What's New Dialog
 Win11 Optimizer detects version changes on launch and offers to open the release notes on GitHub, so you always know what changed.
@@ -183,6 +189,19 @@ Lower-level tweaks for power users. Off by default.
    publish\Win11Optimizer.exe
    ```
 
+### Building the Installer
+
+Win11 Optimizer ships two ways: the portable single-file exe above, and a proper installer built with [Inno Setup](https://jrsoftware.org/isinfo.php) (free, 6.x+).
+
+1. Publish the portable build first (step 3 above) into `.\publish`
+2. Install Inno Setup, then compile `Win11Optimizer.iss`:
+   ```
+   "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" Win11Optimizer.iss
+   ```
+3. The installer is produced at `installer_output\Win11Optimizer-Setup.exe` — it installs to Program Files, creates Start Menu/desktop shortcuts, and registers a proper uninstaller. The app itself still requires Administrator every launch (declared in `app.manifest`), same as the portable build.
+
+A GitHub release should include both `Win11Optimizer-Portable.exe` (the raw publish output, renamed) and `Win11Optimizer-Setup.exe`.
+
 ---
 
 ## Notes
@@ -196,6 +215,8 @@ Lower-level tweaks for power users. Off by default.
 - The hosts file block list is cleanly removed by the Privacy undo function
 - Startup folder shortcuts cannot be disabled (Windows limitation), only deleted
 - MSI Mode and IRQ Affinity tweaks target the primary GPU adapter slot (0000) only
+- Driver Cleanup only ever removes packages the app confirms are **not** currently bound to a device — if you plug that device back in, Windows will need to reinstall the driver
+- Disk Cleanup skips any locked/in-use files automatically rather than failing the whole pass; sizes shown before cleaning are estimates from the last scan
 
 ---
 
