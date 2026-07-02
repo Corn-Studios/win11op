@@ -163,9 +163,14 @@ namespace Win11Optimizer
                     RedirectStandardOutput = true, RedirectStandardError = true
                 };
                 using var p = Process.Start(psi);
-                string stdErr = p.StandardError.ReadToEnd();
-                string stdOut = p.StandardOutput.ReadToEnd();
+                // Read both streams concurrently — reading them sequentially can
+                // deadlock if the process fills one pipe buffer while we're
+                // blocked on the other.
+                var errTask = p.StandardError.ReadToEndAsync();
+                var outTask = p.StandardOutput.ReadToEndAsync();
                 p.WaitForExit();
+                string stdErr = errTask.Result;
+                string stdOut = outTask.Result;
 
                 if (p.ExitCode == 0) return true;
                 error = string.IsNullOrWhiteSpace(stdErr) ? stdOut.Trim() : stdErr.Trim();
@@ -188,9 +193,13 @@ namespace Win11Optimizer
                     RedirectStandardOutput = true, RedirectStandardError = true
                 };
                 using var p = Process.Start(psi);
-                string output = p.StandardOutput.ReadToEnd();
+                // Drain both streams concurrently — stderr is redirected, so if
+                // it's never read and the buffer fills, the child blocks forever.
+                var outTask = p.StandardOutput.ReadToEndAsync();
+                var errTask = p.StandardError.ReadToEndAsync();
                 p.WaitForExit();
-                return output;
+                _ = errTask.Result;
+                return outTask.Result;
             }
             catch (Exception ex)
             {

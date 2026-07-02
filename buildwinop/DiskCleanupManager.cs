@@ -66,6 +66,49 @@ namespace Win11Optimizer
             Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), @"Microsoft\Windows\WER\ReportQueue");
         private static string LocalCrashDumps    => Path.Combine(LocalAppData, "CrashDumps");
         private static string ThumbCacheDir      => Path.Combine(LocalAppData, @"Microsoft\Windows\Explorer");
+        private static string ChromeUserData     => Path.Combine(LocalAppData, @"Google\Chrome\User Data");
+        private static string EdgeUserData       => Path.Combine(LocalAppData, @"Microsoft\Edge\User Data");
+        private static string FirefoxProfiles    => Path.Combine(LocalAppData, @"Mozilla\Firefox\Profiles");
+
+        // Chromium browsers keep caches per profile: User Data\Default\Cache,
+        // User Data\Profile 1\Cache, etc. plus Code Cache and GPUCache siblings.
+        private static IEnumerable<string> ChromiumCacheDirs(string userData)
+        {
+            if (!Directory.Exists(userData)) yield break;
+            IEnumerable<string> profiles;
+            try { profiles = Directory.EnumerateDirectories(userData); }
+            catch { yield break; }
+
+            foreach (var profile in profiles)
+            {
+                string name = Path.GetFileName(profile);
+                if (name != "Default" && !name.StartsWith("Profile ")) continue;
+                foreach (var sub in new[] { "Cache", "Code Cache", "GPUCache" })
+                {
+                    string dir = Path.Combine(profile, sub);
+                    if (Directory.Exists(dir)) yield return dir;
+                }
+            }
+        }
+
+        private static IEnumerable<string> FirefoxCacheDirs()
+        {
+            if (!Directory.Exists(FirefoxProfiles)) yield break;
+            IEnumerable<string> profiles;
+            try { profiles = Directory.EnumerateDirectories(FirefoxProfiles); }
+            catch { yield break; }
+
+            foreach (var profile in profiles)
+            {
+                string dir = Path.Combine(profile, "cache2");
+                if (Directory.Exists(dir)) yield return dir;
+            }
+        }
+
+        private static IEnumerable<string> AllBrowserCacheDirs() =>
+            ChromiumCacheDirs(ChromeUserData)
+                .Concat(ChromiumCacheDirs(EdgeUserData))
+                .Concat(FirefoxCacheDirs());
 
         // ── CATEGORY LIST ────────────────────────────────────────────────
         public static List<CleanupCategory> GetCategories() => new()
@@ -94,6 +137,14 @@ namespace Win11Optimizer
                 Description = "Explorer's thumbnail cache database. Regenerates as you browse folders.",
                 RiskLevel = "Safe", DefaultOn = true },
 
+            new CleanupCategory { Key = "BrowserCache", Name = "Browser Caches (Chrome / Edge / Firefox)",
+                Description = "Web caches only — cookies, passwords, and history are untouched. Close browsers first; in-use files are skipped.",
+                RiskLevel = "Safe", DefaultOn = false },
+
+            new CleanupCategory { Key = "ComponentStore", Name = "Component Store (WinSxS)",
+                Description = "Runs DISM StartComponentCleanup — removes superseded update components. Can free multiple GB but takes several minutes.",
+                RiskLevel = "Safe", DefaultOn = false, SizeKnown = false },
+
             new CleanupCategory { Key = "Prefetch",    Name = "Prefetch Files",
                 Description = "App-launch prefetch hints. Windows rebuilds these over the next few launches.",
                 RiskLevel = "Caution", DefaultOn = false },
@@ -111,26 +162,29 @@ namespace Win11Optimizer
                 RiskLevel = "Caution", DefaultOn = false, SizeKnown = false },
         };
 
+        // ── SIZE MEASUREMENT (shared by scan and clean) ──────────────────
+        private static long MeasureCategory(string key) => key switch
+        {
+            "WinUpdate"      => DirSize(WinUpdateCachePath),
+            "DeliveryOpt"    => DirSize(DeliveryOptPath),
+            "Temp"           => DirSize(UserTempPath) + DirSize(WinTempPath),
+            "ShaderCache"    => DirSize(ShaderCachePath),
+            "WER"            => DirSize(WerReportArchive) + DirSize(WerReportQueue) + DirSize(LocalCrashDumps),
+            "Thumbnails"     => FilesSize(ThumbCacheDir, "thumbcache_*.db"),
+            "BrowserCache"   => AllBrowserCacheDirs().Sum(DirSize),
+            "Prefetch"       => FilesSize(PrefetchPath, "*.pf"),
+            "RecycleBin"     => RecycleBinSize(),
+            "WinOld"         => DirSize(WindowsOldPath),
+            "EventLogs"      => 0,
+            "ComponentStore" => 0,   // DISM analyze is too slow for the startup scan
+            _                => 0
+        };
+
         // ── SCAN (read-only size calculation) ───────────────────────────
         public static void ScanSizes(List<CleanupCategory> categories)
         {
             foreach (var c in categories)
-            {
-                c.SizeBytes = c.Key switch
-                {
-                    "WinUpdate"   => DirSize(WinUpdateCachePath),
-                    "DeliveryOpt" => DirSize(DeliveryOptPath),
-                    "Temp"        => DirSize(UserTempPath) + DirSize(WinTempPath),
-                    "ShaderCache" => DirSize(ShaderCachePath),
-                    "WER"         => DirSize(WerReportArchive) + DirSize(WerReportQueue) + DirSize(LocalCrashDumps),
-                    "Thumbnails"  => FilesSize(ThumbCacheDir, "thumbcache_*.db"),
-                    "Prefetch"    => FilesSize(PrefetchPath, "*.pf"),
-                    "RecycleBin"  => RecycleBinSize(),
-                    "WinOld"      => DirSize(WindowsOldPath),
-                    "EventLogs"   => 0,
-                    _             => 0
-                };
-            }
+                c.SizeBytes = MeasureCategory(c.Key);
         }
 
         // ── CLEAN (destructive) ─────────────────────────────────────────
@@ -141,20 +195,34 @@ namespace Win11Optimizer
             {
                 try
                 {
+                    // Measure right before and right after so BytesFreed is the
+                    // real delta, not the pre-scan estimate — locked/skipped
+                    // files no longer inflate the "freed" number.
+                    long before = c.SizeKnown ? MeasureCategory(c.Key) : 0;
+
                     switch (c.Key)
                     {
-                        case "WinUpdate":   CleanWindowsUpdateCache(); break;
-                        case "DeliveryOpt": CleanDeliveryOptimization(); break;
-                        case "Temp":        DeleteContents(UserTempPath); DeleteContents(WinTempPath); break;
-                        case "ShaderCache": DeleteContents(ShaderCachePath); break;
-                        case "WER":         DeleteContents(WerReportArchive); DeleteContents(WerReportQueue); DeleteContents(LocalCrashDumps); break;
-                        case "Thumbnails":  DeleteFiles(ThumbCacheDir, "thumbcache_*.db"); break;
-                        case "Prefetch":    DeleteFiles(PrefetchPath, "*.pf"); break;
-                        case "RecycleBin":  EmptyRecycleBin(); break;
-                        case "WinOld":      CleanWindowsOld(); break;
-                        case "EventLogs":   ClearEventLogs(); break;
+                        case "WinUpdate":      CleanWindowsUpdateCache(); break;
+                        case "DeliveryOpt":    CleanDeliveryOptimization(); break;
+                        case "Temp":           DeleteContents(UserTempPath); DeleteContents(WinTempPath); break;
+                        case "ShaderCache":    DeleteContents(ShaderCachePath); break;
+                        case "WER":            DeleteContents(WerReportArchive); DeleteContents(WerReportQueue); DeleteContents(LocalCrashDumps); break;
+                        case "Thumbnails":     DeleteFiles(ThumbCacheDir, "thumbcache_*.db"); break;
+                        case "BrowserCache":   foreach (var dir in AllBrowserCacheDirs()) DeleteContents(dir); break;
+                        case "Prefetch":       DeleteFiles(PrefetchPath, "*.pf"); break;
+                        case "RecycleBin":     EmptyRecycleBin(); break;
+                        case "WinOld":         CleanWindowsOld(); break;
+                        case "EventLogs":      ClearEventLogs(); break;
+                        case "ComponentStore": CleanComponentStore(); break;
                     }
-                    results.Add(new CleanupResult { Name = c.Name, Success = true, BytesFreed = c.SizeBytes });
+
+                    long after = c.SizeKnown ? MeasureCategory(c.Key) : 0;
+                    results.Add(new CleanupResult
+                    {
+                        Name       = c.Name,
+                        Success    = true,
+                        BytesFreed = Math.Max(0, before - after)
+                    });
                 }
                 catch (Exception ex)
                 {
@@ -191,6 +259,14 @@ namespace Win11Optimizer
         {
             RunCommand("wevtutil cl Application");
             RunCommand("wevtutil cl System");
+        }
+
+        private static void CleanComponentStore()
+        {
+            // Removes superseded component versions from WinSxS. Deliberately
+            // NOT using /ResetBase — that would make installed updates permanent
+            // and remove the ability to uninstall them.
+            RunCommand("Dism.exe /Online /Cleanup-Image /StartComponentCleanup");
         }
 
         // ── HELPERS ──────────────────────────────────────────────────────

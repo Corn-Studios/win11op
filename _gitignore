@@ -1,0 +1,11 @@
+obj/
+*.user
+*.suo
+.vs/
+.vscode/
+desktop.ini
+tweaks_backup.json
+applied_tweaks.json
+last_version.txt
+changelog.json
+crash.log

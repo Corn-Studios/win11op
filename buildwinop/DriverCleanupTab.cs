@@ -11,6 +11,8 @@ namespace Win11Optimizer
     {
         private Panel      _toolbar;
         private Label      _summaryLabel;
+        private FlatButton _selUnusedBtn;
+        private FlatButton _selNoneBtn;
         private FlatButton _scanBtn;
         private FlatButton _removeBtn;
         private Panel      _scrollPanel;
@@ -66,6 +68,14 @@ namespace Win11Optimizer
                 Location  = new Point(210, 18)
             };
 
+            _selUnusedBtn = new FlatButton("✔ Select Unused", Theme.SURFACE2)
+                { Size = new Size(125, 28), Font = new Font("Segoe UI", 8.5f), ForeColor = Theme.TEXT_SEC };
+            _selUnusedBtn.Click += (s, e) => SetAllSelectable(true);
+
+            _selNoneBtn = new FlatButton("✘ None", Theme.SURFACE2)
+                { Size = new Size(66, 28), Font = new Font("Segoe UI", 8.5f), ForeColor = Theme.TEXT_SEC };
+            _selNoneBtn.Click += (s, e) => SetAllSelectable(false);
+
             _scanBtn = new FlatButton("↺ Scan Driver Store", Theme.SURFACE2)
                 { Size = new Size(150, 28), Font = new Font("Segoe UI", 8.5f), ForeColor = Theme.TEXT_SEC };
             _scanBtn.Click += async (s, e) => await ScanAsync();
@@ -75,15 +85,28 @@ namespace Win11Optimizer
             _removeBtn.Click += async (s, e) => await RemoveSelectedAsync();
 
             _toolbar.SizeChanged += (s, e) => PositionToolbarButtons();
-            _toolbar.Controls.AddRange(new Control[] { title, _summaryLabel, _scanBtn, _removeBtn });
+            _toolbar.Controls.AddRange(new Control[]
+                { title, _summaryLabel, _selUnusedBtn, _selNoneBtn, _scanBtn, _removeBtn });
         }
 
         private void PositionToolbarButtons()
         {
             int r = _toolbar.Width - 12;
-            _removeBtn.Location = new Point(r - _removeBtn.Width, 13);
+            _removeBtn.Location    = new Point(r - _removeBtn.Width, 13);
             r -= _removeBtn.Width + 6;
-            _scanBtn.Location   = new Point(r - _scanBtn.Width, 13);
+            _scanBtn.Location      = new Point(r - _scanBtn.Width, 13);
+            r -= _scanBtn.Width + 14;
+            _selNoneBtn.Location   = new Point(r - _selNoneBtn.Width, 13);
+            r -= _selNoneBtn.Width + 6;
+            _selUnusedBtn.Location = new Point(r - _selUnusedBtn.Width, 13);
+        }
+
+        private void SetAllSelectable(bool check)
+        {
+            // In-use packages have their checkbox disabled — this only ever
+            // touches packages the scan confirmed are safe to remove.
+            foreach (var row in _rows) row.SetChecked(check);
+            UpdateSummary();
         }
 
         private void BuildScrollArea()
@@ -244,6 +267,12 @@ namespace Win11Optimizer
         public bool IsSelected => _checkbox.Checked;
         public event EventHandler SelectionChanged;
 
+        // Respects the in-use lock — a disabled checkbox is never toggled.
+        public void SetChecked(bool value)
+        {
+            if (_checkbox.Enabled) _checkbox.Checked = value;
+        }
+
         private CheckBox _checkbox;
         private Label    _nameLbl;
         private Label    _providerLbl;
@@ -309,6 +338,10 @@ namespace Win11Optimizer
 
             Controls.AddRange(new Control[]
                 { _checkbox, _nameLbl, _providerLbl, _sizeBadge, _statusBadge });
+
+            // Same first-layout fix as CleanupCategoryRow — position badges once
+            // in case the row is added at its final width and SizeChanged never fires.
+            LayoutRow();
         }
 
         private void LayoutRow()

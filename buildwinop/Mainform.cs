@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Security.Principal;
 using System.Threading.Tasks;
@@ -639,6 +640,8 @@ public class MainForm : Form
 
         private Label _winVerBadge;
         private Label _adminBadge;
+        private Label _updateBadge;
+        private Label _rebootBadge;
 
         private Panel       _searchBar;
         private TextBox     _searchBox;
@@ -649,7 +652,7 @@ public class MainForm : Form
         {
             "All", "Performance", "Privacy", "Responsiveness",
             "Gaming", "Network", "Bloatware", "Security", "Advanced",
-            "Startup", "History", "Driver Cleanup", "Disk Cleanup"
+            "Startup", "Services", "History", "Driver Cleanup", "Disk Cleanup"
         };
 
         private static readonly Dictionary<string, string> CatEmoji = new()
@@ -664,6 +667,7 @@ public class MainForm : Form
             ["Advanced"]       = "⚠",
             ["Security"]       = "🔒",
             ["Startup"]        = "🚀",
+            ["Services"]       = "🛠",
             ["History"]        = "📋",
             ["Driver Cleanup"] = "🔧",
             ["Disk Cleanup"]   = "🧹",
@@ -692,6 +696,7 @@ public class MainForm : Form
         private Panel _histPanel;
 
         private StartupTab       _startupTab;
+        private ServicesTab      _servicesTab;
         private DriverCleanupTab _driverTab;
         private DiskCleanupTab   _diskCleanupTab;
 
@@ -705,18 +710,44 @@ public class MainForm : Form
         private bool _isRunning = false;
         private int  _totalTweaks, _doneTweaks;
 
+        // Tweak names applied this session that are still waiting on a reboot
+        // or an Explorer restart to take full effect.
+        private readonly List<string> _pendingReboot   = new();
+        private readonly List<string> _pendingExplorer = new();
+
         public MainForm()
         {
             InitUI();
+            DarkTitleBar.Apply(this);
             PopulateGrid("All");
             UpdateSelCount();
             if (AdminWarning.Show) _adminBadge.Visible = true;
             CheckWhatsNew();
+            _ = CheckForUpdatesAsync();
+        }
+
+        private async Task CheckForUpdatesAsync()
+        {
+            string newer = await UpdateChecker.CheckAsync();
+            if (newer == null || IsDisposed) return;
+            try
+            {
+                Invoke(new Action(() =>
+                {
+                    _updateBadge.Text    = $"⬆ v{newer} available";
+                    _updateBadge.Visible = true;
+                    _topBar.PerformLayout();
+                }));
+            }
+            catch { /* form closed mid-check */ }
         }
 
         private void CheckWhatsNew()
         {
-            const string CurrentVersion = "1.1.0";
+            // Single source of truth — this was previously a hardcoded "1.1.0"
+            // that never got bumped, so the What's New dialog compared against
+            // the wrong version forever.
+            string CurrentVersion = AppVersion.Current;
             string versionFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "last_version.txt");
 
             try
@@ -891,20 +922,45 @@ private void BuildTopBar()
             ghLink.FlatAppearance.BorderSize         = 0;
             ghLink.FlatAppearance.MouseOverBackColor = Theme.ACCENT_HOV;
             ghLink.Click += (s, e) => Process.Start(new ProcessStartInfo
-                { FileName = "https://github.com/Corn-Studios/win11op", UseShellExecute = true });
-            _topBar.SizeChanged += (s, e) =>
+                { FileName = AppVersion.RepoUrl, UseShellExecute = true });
+
+            // Shown only when the launch-time GitHub check finds a newer release
+            _updateBadge = new Label
+            {
+                Text      = "",
+                Font      = new Font("Courier New", 7.5f, FontStyle.Bold),
+                ForeColor = Theme.ACCENT,
+                BackColor = Color.FromArgb(30, Theme.ACCENT.R, Theme.ACCENT.G, Theme.ACCENT.B),
+                AutoSize  = true,
+                Padding   = new Padding(6, 4, 6, 4),
+                Cursor    = Cursors.Hand,
+                Visible   = false
+            };
+            _updateBadge.Click += (s, e) => Process.Start(new ProcessStartInfo
+                { FileName = AppVersion.RepoUrl + "/releases/latest", UseShellExecute = true });
+
+            void PositionTopRight(object s, EventArgs e)
+            {
                 ghLink.Location = new Point(_topBar.Width - ghLink.Width - Dpi.S(16),
                                             (_topBar.Height - ghLink.Height) / 2);
+                _updateBadge.Location = new Point(ghLink.Left - _updateBadge.Width - Dpi.S(10),
+                                            (_topBar.Height - _updateBadge.Height) / 2);
+            }
+            _topBar.SizeChanged  += PositionTopRight;
+            _updateBadge.SizeChanged += PositionTopRight;
 
             _topBar.Controls.AddRange(new Control[]
-                { cornLbl, titleLbl, _winVerBadge, _adminBadge, ghLink });
+                { cornLbl, titleLbl, _winVerBadge, _adminBadge, _updateBadge, ghLink });
         }
 
         //  SIDEBAR --
 
         private void BuildSidebar()
         {
-            _sidebar = new Panel { BackColor = Theme.SURFACE, Width = Dpi.S(210) };
+            // AutoScroll: with 14 category buttons plus the Select All/None row,
+            // the stack is taller than the sidebar at minimum window height —
+            // without this, the bottom entries silently clip off-screen.
+            _sidebar = new Panel { BackColor = Theme.SURFACE, Width = Dpi.S(210), AutoScroll = true };
             _sidebar.Paint += (s, e) =>
             {
                 var g = e.Graphics;
@@ -1025,6 +1081,7 @@ private void BuildTopBar()
                 RefreshSidebar();
                 if      (cat == "History")        ShowHistory();
                 else if (cat == "Startup")        ShowStartup();
+                else if (cat == "Services")        ShowServices();
                 else if (cat == "Driver Cleanup")  ShowDriverCleanup();
                 else if (cat == "Disk Cleanup")    ShowDiskCleanup();
                 else                               PopulateGrid(cat);
@@ -1066,6 +1123,12 @@ private void BuildMainArea()
             };
             _tileGrid.HorizontalScroll.Enabled = false;
             _tileGrid.HorizontalScroll.Visible = false;
+            // Stock FlowLayoutPanel isn't double-buffered by default; with ~35 tiles
+            // repainting at once (e.g. Select All / None), that can flash/blank the
+            // grid mid-redraw. DoubleBuffered is protected, so flip it via reflection.
+            typeof(Panel)
+                .GetProperty("DoubleBuffered", BindingFlags.NonPublic | BindingFlags.Instance)
+                ?.SetValue(_tileGrid, true, null);
 
             _histPanel = new Panel
             {
@@ -1077,11 +1140,13 @@ private void BuildMainArea()
             };
 
             _startupTab     = new StartupTab();
+            _servicesTab    = new ServicesTab();
             _driverTab      = new DriverCleanupTab();
             _diskCleanupTab = new DiskCleanupTab();
 
             _mainArea.Controls.Add(_histPanel);
             _mainArea.Controls.Add(_startupTab);
+            _mainArea.Controls.Add(_servicesTab);
             _mainArea.Controls.Add(_driverTab);
             _mainArea.Controls.Add(_diskCleanupTab);
             _mainArea.Controls.Add(_tileGrid);
@@ -1441,6 +1506,7 @@ private static readonly string[] CategoryOrder =
         {
             _histPanel.Visible      = false;
             _startupTab.Visible     = false;
+            _servicesTab.Visible    = false;
             _driverTab.Visible      = false;
             _diskCleanupTab.Visible = false;
             _tileGrid.Visible       = true;
@@ -1505,8 +1571,10 @@ private static readonly string[] CategoryOrder =
 
         private void SetAllInView(bool check)
         {
+            _tileGrid.SuspendLayout();
             foreach (var t in _tiles.Where(t => t.Visible))
                 t.IsChecked = check;
+            _tileGrid.ResumeLayout(true);
             UpdateSelCount();
         }
 
@@ -1530,46 +1598,49 @@ private static readonly string[] CategoryOrder =
             }
         }
 
-private void ShowHistory()
+        // Hides every full-page view; callers then flip on the one they want.
+        private void HideAllTabs()
         {
             _tileGrid.Visible       = false;
             _searchBar.Visible      = false;
+            _histPanel.Visible      = false;
             _startupTab.Visible     = false;
+            _servicesTab.Visible    = false;
             _driverTab.Visible      = false;
             _diskCleanupTab.Visible = false;
-            _histPanel.Visible      = true;
+        }
+
+        private void ShowHistory()
+        {
+            HideAllTabs();
+            _histPanel.Visible = true;
             BuildHistoryContent();
         }
 
         private void ShowStartup()
         {
-            _tileGrid.Visible       = false;
-            _searchBar.Visible      = false;
-            _histPanel.Visible      = false;
-            _driverTab.Visible      = false;
-            _diskCleanupTab.Visible = false;
-            _startupTab.Visible     = true;
+            HideAllTabs();
+            _startupTab.Visible = true;
             _startupTab.Activate();
+        }
+
+        private void ShowServices()
+        {
+            HideAllTabs();
+            _servicesTab.Visible = true;
+            _servicesTab.Activate();
         }
 
         private void ShowDriverCleanup()
         {
-            _tileGrid.Visible       = false;
-            _searchBar.Visible      = false;
-            _histPanel.Visible      = false;
-            _startupTab.Visible     = false;
-            _diskCleanupTab.Visible = false;
-            _driverTab.Visible      = true;
+            HideAllTabs();
+            _driverTab.Visible = true;
             _driverTab.Activate();
         }
 
         private void ShowDiskCleanup()
         {
-            _tileGrid.Visible       = false;
-            _searchBar.Visible      = false;
-            _histPanel.Visible      = false;
-            _startupTab.Visible     = false;
-            _driverTab.Visible      = false;
+            HideAllTabs();
             _diskCleanupTab.Visible = true;
             _diskCleanupTab.Activate();
         }
@@ -1793,6 +1864,56 @@ private void BuildBottomBar()
                 { Size = new Size(Dpi.S(70), Dpi.S(26)) };
             logToggle.Click += (s, e) => ToggleLog();
 
+            // Shell/UI tweaks (visual effects, menu delay, taskbar icons) only
+            // need Explorer restarted — this makes those feel instant instead
+            // of waiting on a full reboot.
+            var explorerBtn = new FlatButton("⟳ Restart Explorer", Theme.SURFACE2)
+                { Size = new Size(Dpi.S(140), Dpi.S(26)), ForeColor = Theme.TEXT_SEC };
+            explorerBtn.Click += (s, e) =>
+            {
+                if (MessageBox.Show(
+                        "Restart Windows Explorer now?\n\nThe taskbar and open folder windows " +
+                        "will briefly disappear and come back. Unsaved work in other apps is not affected.",
+                        "Restart Explorer", MessageBoxButtons.YesNo, MessageBoxIcon.Question)
+                    != DialogResult.Yes) return;
+
+                if (ExplorerHelper.Restart(out string err))
+                {
+                    AppendLog("⟳ Explorer restarted.");
+                    ClearPendingImpact(RebootImpact.ExplorerRestart);
+                }
+                else
+                {
+                    AppendLog($"✘ Explorer restart failed: {err}");
+                }
+            };
+
+            // Amber badge listing exactly what's waiting on a reboot / Explorer
+            // restart after a run — click it for the full tweak list.
+            _rebootBadge = new Label
+            {
+                Text      = "",
+                Font      = new Font("Courier New", 7.5f, FontStyle.Bold),
+                ForeColor = Theme.WARNING,
+                BackColor = Color.FromArgb(30, Theme.WARNING.R, Theme.WARNING.G, Theme.WARNING.B),
+                AutoSize  = true,
+                Padding   = new Padding(6, 3, 6, 3),
+                Location  = new Point(Dpi.S(16), Dpi.S(66)),
+                Cursor    = Cursors.Hand,
+                Visible   = false
+            };
+            _rebootBadge.Click += (s, e) =>
+            {
+                string msg = "";
+                if (_pendingReboot.Count > 0)
+                    msg += "Waiting on a REBOOT:\n  • " + string.Join("\n  • ", _pendingReboot) + "\n\n";
+                if (_pendingExplorer.Count > 0)
+                    msg += "Waiting on an EXPLORER RESTART:\n  • " + string.Join("\n  • ", _pendingExplorer);
+                if (msg.Length > 0)
+                    MessageBox.Show(msg.TrimEnd(), "Pending Changes",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+            };
+
             _exportBtn = new FlatButton("↑ Export Profile", Theme.SURFACE2)
                 { Size = new Size(Dpi.S(130), Dpi.S(36)) };
             _exportBtn.Click += (s, e) =>
@@ -1808,7 +1929,7 @@ private void BuildBottomBar()
                 var keys = TweakProfile.Import();
                 if (keys == null) return;
                 // Switch to All view so all tiles are visible
-                if (_activeCategory == "History" || _activeCategory == "Startup" || _activeCategory == "Driver Cleanup" || _activeCategory == "Disk Cleanup")
+                if (_activeCategory is "History" or "Startup" or "Services" or "Driver Cleanup" or "Disk Cleanup")
                 {
                     _activeCategory = "All";
                     RefreshSidebar();
@@ -1830,14 +1951,16 @@ private void BuildBottomBar()
                 _undoBtn.Location   = new Point(r - Dpi.S(460), Dpi.S(82));
                 _exportBtn.Location = new Point(r - Dpi.S(606), Dpi.S(82));
                 _importBtn.Location = new Point(r - Dpi.S(750), Dpi.S(82));
-                logToggle.Location  = new Point(r - Dpi.S(76),  Dpi.S(12));
-                _progOuter.Width    = Math.Max(Dpi.S(200), r - Dpi.S(96));
+                logToggle.Location   = new Point(r - Dpi.S(76),  Dpi.S(12));
+                explorerBtn.Location = new Point(r - Dpi.S(76) - Dpi.S(6) - explorerBtn.Width, Dpi.S(12));
+                _progOuter.Width     = Math.Max(Dpi.S(200), r - Dpi.S(96) - Dpi.S(6) - explorerBtn.Width);
             };
 
             _bottomBar.Controls.AddRange(new Control[]
             {
-                _progOuter, _statusLabel, _selCountLabel,
-                _restoreChk, _undoBtn, _clearBtn, _exportBtn, _importBtn, _runBtn, logToggle
+                _progOuter, _statusLabel, _selCountLabel, _rebootBadge,
+                _restoreChk, _undoBtn, _clearBtn, _exportBtn, _importBtn, _runBtn,
+                logToggle, explorerBtn
             });
         }
 
@@ -2100,7 +2223,18 @@ private async void OnRunClicked(object sender, EventArgs e)
             SetProgress(_totalTweaks, _totalTweaks);
             SetStatus($"Complete — {pass} succeeded, {fail} failed.",
                 fail == 0 ? Theme.SUCCESS : Theme.WARNING);
-            AppendLog($"══ COMPLETE: {pass} succeeded, {fail} failed. Reboot recommended. ══");
+
+            // Classify exactly what's pending instead of a blanket "reboot recommended"
+            var (needReboot, needExplorer) = RebootInfo.Split(selected.Select(t => t.Entry));
+            foreach (var n in needReboot)   if (!_pendingReboot.Contains(n))   _pendingReboot.Add(n);
+            foreach (var n in needExplorer) if (!_pendingExplorer.Contains(n)) _pendingExplorer.Add(n);
+            RefreshRebootBadge();
+
+            string pendingNote =
+                  needReboot.Count   > 0 ? $" {needReboot.Count} tweak(s) need a reboot."
+                : needExplorer.Count > 0 ? $" {needExplorer.Count} tweak(s) need an Explorer restart."
+                : " No reboot needed.";
+            AppendLog($"══ COMPLETE: {pass} succeeded, {fail} failed.{pendingNote} ══");
 
             ChangeLog.AddEntry(new ChangeLog.RunEntry
             {
@@ -2115,7 +2249,24 @@ private async void OnRunClicked(object sender, EventArgs e)
             _runBtn.Enabled = true;
             _isRunning      = false;
             UpdateSelCount();
-            PromptReboot();
+
+            // Only nag about rebooting when something applied actually needs one
+            if (needReboot.Count > 0)
+                PromptReboot(needReboot);
+            else if (needExplorer.Count > 0 &&
+                     MessageBox.Show(
+                         $"{needExplorer.Count} tweak(s) take effect after an Explorer restart.\n\n" +
+                         "Restart Explorer now? (Taskbar and folder windows reload — other apps are unaffected.)",
+                         "Explorer Restart", MessageBoxButtons.YesNo, MessageBoxIcon.Question,
+                         MessageBoxDefaultButton.Button1) == DialogResult.Yes)
+            {
+                if (ExplorerHelper.Restart(out string err))
+                {
+                    AppendLog("⟳ Explorer restarted.");
+                    ClearPendingImpact(RebootImpact.ExplorerRestart);
+                }
+                else AppendLog($"✘ Explorer restart failed: {err}");
+            }
         }
 
 private async void OnUndoClicked(object sender, EventArgs e)
@@ -2183,14 +2334,46 @@ private void SetStatus(string msg, Color col = default)
             _logBox.ScrollToCaret();
         }
 
-        private void PromptReboot()
+        private void PromptReboot(List<string> pendingNames)
         {
-            if (MessageBox.Show("Some tweaks require a reboot to take full effect.\n\nWould you like to reboot now?",
-                "Reboot Required", MessageBoxButtons.YesNo, MessageBoxIcon.Question,
-                MessageBoxDefaultButton.Button2) == DialogResult.Yes)
+            string list = pendingNames.Count <= 6
+                ? "\n\nWaiting on the reboot:\n  • " + string.Join("\n  • ", pendingNames)
+                : $"\n\n{pendingNames.Count} applied tweaks are waiting on the reboot.";
+
+            if (MessageBox.Show(
+                    $"Some tweaks require a reboot to take full effect.{list}\n\nWould you like to reboot now?",
+                    "Reboot Required", MessageBoxButtons.YesNo, MessageBoxIcon.Question,
+                    MessageBoxDefaultButton.Button2) == DialogResult.Yes)
                 Process.Start(new ProcessStartInfo("shutdown.exe",
                     "/r /t 10 /c \"Win11 Optimizer: Rebooting to apply tweaks.\"")
                     { UseShellExecute = false, CreateNoWindow = true });
+        }
+
+        private void RefreshRebootBadge()
+        {
+            if (InvokeRequired) { Invoke(new Action(RefreshRebootBadge)); return; }
+
+            if (_pendingReboot.Count == 0 && _pendingExplorer.Count == 0)
+            {
+                _rebootBadge.Visible = false;
+                return;
+            }
+
+            var parts = new List<string>();
+            if (_pendingReboot.Count > 0)
+                parts.Add($"{_pendingReboot.Count} awaiting reboot");
+            if (_pendingExplorer.Count > 0)
+                parts.Add($"{_pendingExplorer.Count} awaiting Explorer restart");
+
+            _rebootBadge.Text    = "⚠ " + string.Join("  ·  ", parts) + "  (click for list)";
+            _rebootBadge.Visible = true;
+        }
+
+        private void ClearPendingImpact(RebootImpact kind)
+        {
+            if (kind == RebootImpact.ExplorerRestart) _pendingExplorer.Clear();
+            if (kind == RebootImpact.Reboot)          _pendingReboot.Clear();
+            RefreshRebootBadge();
         }
     }
 
@@ -2245,6 +2428,8 @@ private void SetStatus(string msg, Color col = default)
             BackColor = Theme.CARD;
             Margin    = new Padding(Dpi.S(5));
             Cursor    = Cursors.Hand;
+            SetStyle(ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint
+                     | ControlStyles.UserPaint | ControlStyles.ResizeRedraw, true);
 
             Color accent = CatAccent.TryGetValue(entry.Category, out var ac) ? ac : Theme.ACCENT;
 
@@ -2506,7 +2691,7 @@ internal static class GraphicsEx
     static class Program
     {
         [STAThread]
-        static void Main()
+        static void Main(string[] args)
         {
             try
             {
@@ -2521,6 +2706,14 @@ internal static class GraphicsEx
                 WinVersion.Detect();
                 ChangeLog.Load();
                 AppliedState.Load();
+                // Previously never called — tweaks_backup.json was written on
+                // every apply but never read back, so per-category Undo silently
+                // stopped working after an app restart.
+                TweakEngine.LoadBackups();
+
+                // Headless mode: --apply / --list-tweaks / --help run without the GUI
+                if (CliRunner.TryRun(args, out int cliExit))
+                    Environment.Exit(cliExit);
 
                 if (!IsAdmin())
                 {

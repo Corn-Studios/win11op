@@ -18,24 +18,6 @@
     </application>
   </compatibility>
 
-  <!--
-    DPI awareness — declared here so Windows honours it before the process
-    is created, preventing the OS from applying compatibility shims that
-    would override the programmatic SetHighDpiMode call.
-
-    "PerMonitorV2" (Windows 10 1703+):
-      - Each top-level window gets its own DPI context.
-      - WM_DPICHANGED fires when the window moves between monitors.
-      - No OS bitmap-scaling fallback — we own every pixel.
-  -->
-  <application xmlns="urn:schemas-microsoft-com:asm.v3">
-    <windowsSettings>
-      <dpiAware       xmlns="http://schemas.microsoft.com/SMI/2005/WindowsSettings">true/PM</dpiAware>
-      <dpiAwareness   xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">PerMonitorV2</dpiAwareness>
-      <longPathAware  xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">true</longPathAware>
-    </windowsSettings>
-  </application>
-
   <!-- Enable modern visual styles -->
   <dependency>
     <dependentAssembly>

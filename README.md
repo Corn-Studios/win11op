@@ -3,7 +3,7 @@
 > A clean, open-source Windows 10/11 optimizer built in C# / WinForms.  
 > Drop it on a fresh Windows install, run it once as Administrator, and apply exactly the tweaks you want — with full per-tweak undo support.
 
-**Version:** `1.3.0`  
+**Version:** `1.4.0`  
 **Platform:** Windows 10 / 11 (64-bit)  
 **Runtime:** Self-contained — no .NET install required  
 **License:** MIT
@@ -24,11 +24,32 @@ Save your current tweak selection to a `.w11profile` file and load it on any mac
 ### 🚀 Startup Manager
 A dedicated tab to view, enable, disable, and delete startup entries from both the registry and startup folders.
 
+### 🛠 Services Manager
+A curated list of genuinely optional Windows services — telemetry (DiagTrack, WAP Push), legacy leftovers (Fax, Retail Demo, WMP Network Sharing), Xbox services, and more — each with a plain-English description of what breaks if you disable it. Disabling records the service's original startup type to `services_backup.json`, so **Restore** puts back exactly what the machine had, not a guess. Protected or in-use services report the failure instead of silently pretending.
+
+### 💻 Headless CLI Mode
+Apply a profile on a fresh install without ever opening the GUI — pairs perfectly with CornDownloader for one-command machine setup:
+
+```
+Win11Optimizer.exe --apply gaming.w11profile [--silent] [--no-restore-point]
+Win11Optimizer.exe --list-tweaks
+Win11Optimizer.exe --help
+```
+
+Output goes to the console you launched from and to `cli_run.log`. Exit codes: `0` all succeeded, `1` some tweaks failed, `2` bad usage/input. Run from an elevated prompt.
+
+### ⬆ Update Notifications
+On launch the app silently checks GitHub Releases; if a newer version exists, a gold badge appears in the top bar linking straight to the release. Works alongside the existing What's New dialog — no nagging, no auto-download.
+
+### ⚠ Smart Reboot Tracking
+Every tweak is tagged with what it actually needs to take effect: nothing, an Explorer restart, or a full reboot. After a run the app tells you exactly which tweaks are waiting on what (amber badge in the bottom bar — click for the list), only prompts for a reboot when one is genuinely required, and offers a one-click **⟳ Restart Explorer** for shell-level tweaks like visual effects and menu delay.
+
+
 ### 🔧 Driver Cleanup
 Scans the Windows Driver Store (`pnputil /enum-drivers`) and cross-references every published driver package against the drivers actually bound to a device right now. Packages that are currently in use are locked and can't be selected; unused/orphaned packages (old GPU driver versions left behind by updates, drivers for devices you no longer own, etc.) can be selected and removed in a batch, with an estimated space freed before you confirm.
 
 ### 🧹 Disk Cleanup
-A thorough cleanup pass across the categories the built-in Disk Cleanup tool misses or hides: Windows Update cache, Delivery Optimization cache, temp files, DirectX shader cache, WER/crash dumps, thumbnail cache, prefetch files, the Recycle Bin, `Windows.old`, and Application/System event logs. Each category is scanned for reclaimable space before you pick what to clean, and is flagged **Safe** or **Caution** — Caution items (Recycle Bin, `Windows.old`, Prefetch, Event Logs) are off by default.
+A thorough cleanup pass across the categories the built-in Disk Cleanup tool misses or hides: Windows Update cache, Delivery Optimization cache, temp files, DirectX shader cache, WER/crash dumps, thumbnail cache, browser caches (Chrome / Edge / Firefox — caches only, cookies and passwords untouched), the Component Store (WinSxS via DISM `StartComponentCleanup` — often frees multiple GB), prefetch files, the Recycle Bin, `Windows.old`, and Application/System event logs. Each category is scanned for reclaimable space before you pick what to clean, and is flagged **Safe** or **Caution** — Caution items (Recycle Bin, `Windows.old`, Prefetch, Event Logs) are off by default. The "freed" number reported after cleaning is measured for real (before/after), not estimated — locked files that got skipped no longer inflate it.
 
 ### 🆕 What's New Dialog
 Win11 Optimizer detects version changes on launch and offers to open the release notes on GitHub, so you always know what changed.
@@ -206,17 +227,20 @@ A GitHub release should include both `Win11Optimizer-Portable.exe` (the raw publ
 
 ## Notes
 
-- A **reboot is required** after applying tweaks for HAGS, timer resolution, SMBv1, TSC sync, x2APIC, and core parking changes to take full effect
+- The app now reports **per-tweak** reboot impact — a reboot is only prompted when an applied tweak genuinely needs one (HAGS, timer resolution, SMBv1, bcdedit-level tweaks, core parking, MSI mode, etc.); shell-level tweaks just need the built-in **⟳ Restart Explorer** button
 - Bloatware removal cannot be undone — reinstall from the Microsoft Store if needed
-- All registry changes are backed up to `tweaks_backup.json` next to the exe before being applied
+- All registry changes are backed up to `tweaks_backup.json` next to the exe before being applied, and are loaded back on startup so per-category Undo works across app restarts
 - Applied tweak state is tracked per-tweak in `applied_tweaks.json` next to the exe
+- Service startup types changed in the Services tab are recorded in `services_backup.json` for exact restore
+- Component Store cleanup runs DISM and can take several minutes; it deliberately does **not** use `/ResetBase`, so installed updates stay uninstallable
+- Browser cache cleanup touches caches only — cookies, passwords, and history are never deleted; close browsers first for a fuller clean (in-use files are skipped)
 - Windows Recall tweaks are a no-op on non-Copilot+ PCs — safe to apply on any hardware
 - NVIDIA telemetry tweaks are a no-op if NVIDIA drivers are not installed
 - The hosts file block list is cleanly removed by the Privacy undo function
 - Startup folder shortcuts cannot be disabled (Windows limitation), only deleted
 - MSI Mode and IRQ Affinity tweaks target the primary GPU adapter slot (0000) only
-- Driver Cleanup only ever removes packages the app confirms are **not** currently bound to a device — if you plug that device back in, Windows will need to reinstall the driver
-- Disk Cleanup skips any locked/in-use files automatically rather than failing the whole pass; sizes shown before cleaning are estimates from the last scan
+- Driver Cleanup only ever removes packages the app confirms are **not** currently bound to a device — "Select Unused" respects the same lock — if you plug that device back in, Windows will need to reinstall the driver
+- Disk Cleanup skips any locked/in-use files automatically rather than failing the whole pass; the freed total shown after cleaning is measured, not estimated
 
 ---
 

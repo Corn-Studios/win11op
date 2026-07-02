@@ -11,6 +11,8 @@ namespace Win11Optimizer
     {
         private Panel      _toolbar;
         private Label      _summaryLabel;
+        private FlatButton _selAllBtn;
+        private FlatButton _selNoneBtn;
         private FlatButton _scanBtn;
         private FlatButton _cleanBtn;
         private Panel      _scrollPanel;
@@ -65,6 +67,14 @@ namespace Win11Optimizer
                 Location  = new Point(190, 18)
             };
 
+            _selAllBtn = new FlatButton("✔ All", Theme.SURFACE2)
+                { Size = new Size(60, 28), Font = new Font("Segoe UI", 8.5f), ForeColor = Theme.TEXT_SEC };
+            _selAllBtn.Click += (s, e) => SetAllRows(true);
+
+            _selNoneBtn = new FlatButton("✘ None", Theme.SURFACE2)
+                { Size = new Size(66, 28), Font = new Font("Segoe UI", 8.5f), ForeColor = Theme.TEXT_SEC };
+            _selNoneBtn.Click += (s, e) => SetAllRows(false);
+
             _scanBtn = new FlatButton("↺ Scan", Theme.SURFACE2)
                 { Size = new Size(84, 28), Font = new Font("Segoe UI", 8.5f), ForeColor = Theme.TEXT_SEC };
             _scanBtn.Click += async (s, e) => await ScanAsync();
@@ -74,15 +84,26 @@ namespace Win11Optimizer
             _cleanBtn.Click += async (s, e) => await CleanSelectedAsync();
 
             _toolbar.SizeChanged += (s, e) => PositionToolbarButtons();
-            _toolbar.Controls.AddRange(new Control[] { title, _summaryLabel, _scanBtn, _cleanBtn });
+            _toolbar.Controls.AddRange(new Control[]
+                { title, _summaryLabel, _selAllBtn, _selNoneBtn, _scanBtn, _cleanBtn });
         }
 
         private void PositionToolbarButtons()
         {
             int r = _toolbar.Width - 12;
-            _cleanBtn.Location = new Point(r - _cleanBtn.Width, 13);
+            _cleanBtn.Location   = new Point(r - _cleanBtn.Width, 13);
             r -= _cleanBtn.Width + 6;
-            _scanBtn.Location  = new Point(r - _scanBtn.Width, 13);
+            _scanBtn.Location    = new Point(r - _scanBtn.Width, 13);
+            r -= _scanBtn.Width + 14;
+            _selNoneBtn.Location = new Point(r - _selNoneBtn.Width, 13);
+            r -= _selNoneBtn.Width + 6;
+            _selAllBtn.Location  = new Point(r - _selAllBtn.Width, 13);
+        }
+
+        private void SetAllRows(bool check)
+        {
+            foreach (var row in _rows) row.IsChecked = check;
+            UpdateSummary();
         }
 
         private void BuildScrollArea()
@@ -176,7 +197,9 @@ namespace Win11Optimizer
 
             _scanBtn.Enabled  = false;
             _cleanBtn.Enabled = false;
-            _summaryLabel.Text = "Cleaning...";
+            _summaryLabel.Text = selected.Any(c => c.Key == "ComponentStore")
+                ? "Cleaning... (Component Store via DISM can take several minutes)"
+                : "Cleaning...";
 
             var results = await Task.Run(() => DiskCleanupManager.Clean(selected));
 
@@ -270,6 +293,11 @@ namespace Win11Optimizer
             SizeChanged += (s, e) => LayoutRow();
 
             Controls.AddRange(new Control[] { _checkbox, _nameLbl, _descLbl, _sizeBadge, _riskBadge });
+
+            // Badges sit at their AutoSize default until the first SizeChanged
+            // fires — if the row is created at its final width, that never
+            // happens, so position everything once up front.
+            LayoutRow();
         }
 
         public void RefreshSize()
