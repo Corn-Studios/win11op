@@ -111,7 +111,7 @@ namespace Win11Optimizer
 
             foreach (var cat in _categories)
             {
-                var row = new CleanupCategoryRow(cat) { Checked = cat.DefaultOn };
+                var row = new CleanupCategoryRow(cat) { IsChecked = cat.DefaultOn };
                 row.SelectionChanged += (s, e) => UpdateSummary();
                 _rows.Add(row);
                 _innerPanel.Controls.Add(row);
@@ -150,15 +150,15 @@ namespace Win11Optimizer
 
         private void UpdateSummary()
         {
-            long selectedBytes = _rows.Where(r => r.Checked).Sum(r => r.Category.SizeBytes);
-            int  selectedCount = _rows.Count(r => r.Checked);
+            long selectedBytes = _rows.Where(r => r.IsChecked).Sum(r => r.Category.SizeBytes);
+            int  selectedCount = _rows.Count(r => r.IsChecked);
             _summaryLabel.Text = $"{selectedCount} selected  ·  ~{SizeFormat.Bytes(selectedBytes)} reclaimable";
             _cleanBtn.Enabled  = selectedCount > 0;
         }
 
         private async Task CleanSelectedAsync()
         {
-            var selected = _rows.Where(r => r.Checked).Select(r => r.Category).ToList();
+            var selected = _rows.Where(r => r.IsChecked).Select(r => r.Category).ToList();
             if (selected.Count == 0) return;
 
             bool hasCaution = selected.Any(c => c.RiskLevel == "Caution");
@@ -202,7 +202,9 @@ namespace Win11Optimizer
     public class CleanupCategoryRow : Panel
     {
         public CleanupCategory Category { get; }
-        public bool Checked { get => _checkbox.Checked; set => _checkbox.Checked = value; }
+        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+        [System.ComponentModel.Browsable(false)]
+        public bool IsChecked { get => _checkbox.Checked; set => _checkbox.Checked = value; }
         public event EventHandler SelectionChanged;
 
         private CheckBox _checkbox;
