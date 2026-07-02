@@ -673,6 +673,11 @@ public class MainForm : Form
 
         private FlowLayoutPanel          _tileGrid;
         private readonly List<TweakTile> _tiles = new();
+
+        // Persists each tweak's checked state across grid rebuilds (category switches,
+        // preset applies, profile loads) so Select All/None and manual toggles survive
+        // a re-render instead of snapping back to DefaultOn every time.
+        private readonly Dictionary<string, bool> _selectionState = new();
         private Label      _statusLabel;
         private Label      _selCountLabel;
         private Panel      _progOuter;
@@ -1464,11 +1469,20 @@ private static readonly string[] CategoryOrder =
                 foreach (var entry in group)
                 {
                     var tile = new TweakTile(entry);
-                    tile.IsChecked = entry.DefaultOn;
+                    // Restore whatever the user last set this tweak to; only fall back
+                    // to DefaultOn the first time a tile is ever created.
+                    tile.IsChecked = _selectionState.TryGetValue(entry.TweakKey, out var wasChecked)
+                        ? wasChecked
+                        : entry.DefaultOn;
                     // Mark already-applied tiles (applied by app in a previous session)
                     if (AppliedState.IsApplied(entry.TweakKey))
                         tile.SetApplied(AppliedSource.AppliedByApp);
-                    tile.CheckedChanged += (s, e_) => { UpdateSelCount(); SetStatus("Ready", Theme.TEXT_SEC); };
+                    tile.CheckedChanged += (s, e_) =>
+                    {
+                        _selectionState[entry.TweakKey] = tile.IsChecked;
+                        UpdateSelCount();
+                        SetStatus("Ready", Theme.TEXT_SEC);
+                    };
                     // Tooltip wiring
                     tile.MouseEnter += (s, e_) => ShowTooltip((TweakTile)s);
                     tile.MouseLeave += (s, e_) => HideTooltip();
