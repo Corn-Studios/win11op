@@ -558,7 +558,7 @@ public static class ChangeLog
         public class Profile
         {
             public string       Name      { get; set; } = "My Profile";
-            public string       Version   { get; set; } = "1.1.0";
+            public string       Version   { get; set; } = AppVersion.Current;
             public string       CreatedAt { get; set; } = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
             public List<string> TweakKeys { get; set; } = new();
         }
@@ -574,7 +574,7 @@ public static class ChangeLog
             };
             if (dlg.ShowDialog() != DialogResult.OK) return;
 
-            var profile = new Profile { TweakKeys = checkedKeys.ToList() };
+            var profile = new Profile { TweakKeys = checkedKeys.ToList(), Version = AppVersion.Current };
             try
             {
                 File.WriteAllText(dlg.FileName,
@@ -613,9 +613,14 @@ public static class ChangeLog
 
                 int matched = profile.TweakKeys.Count(k =>
                     TweakCatalog.All.Any(t => t.TweakKey == k));
+                string versionNote = string.IsNullOrEmpty(profile.Version)
+                    ? "unknown version"
+                    : profile.Version == AppVersion.Current
+                        ? $"v{profile.Version}"
+                        : $"v{profile.Version} (this app is v{AppVersion.Current})";
                 MessageBox.Show(
                     $"Profile loaded: \"{profile.Name}\"\n" +
-                    $"Created: {profile.CreatedAt}\n\n" +
+                    $"Created: {profile.CreatedAt}  ·  {versionNote}\n\n" +
                     $"{matched} of {profile.TweakKeys.Count} tweaks matched this version.",
                     "Import Successful", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
@@ -776,7 +781,7 @@ public class MainForm : Form
                         if (result == DialogResult.Yes)
                             Process.Start(new ProcessStartInfo
                             {
-                                FileName       = "https://github.com/Corn-Studios/win11op/releases/tag/v" + CurrentVersion,
+                                FileName       = "https://github.com/Corn-Systems/win11op/releases/tag/v" + CurrentVersion,
                                 UseShellExecute = true
                             });
                     }
@@ -785,7 +790,7 @@ public class MainForm : Form
             catch { }
         }
 
-private void InitUI()
+        private void InitUI()
         {
             Dpi.Update(this);
             AutoScaleMode   = AutoScaleMode.None;
@@ -879,10 +884,10 @@ private void BuildTopBar()
                 g.FillRectangle(bar, 0, 0, _topBar.Width, 2);
             };
 
-            // "CORN_STUDIOS" style logo label — matches website nav-logo font
+            // "CORN_SYSTEMS" style logo label — matches website nav-logo font
             var cornLbl = new Label
             {
-                Text      = "CORN_STUDIOS",
+                Text      = "CORN_SYSTEMS",
                 Font      = new Font("Courier New", 7f, FontStyle.Bold),
                 ForeColor = Theme.ACCENT,
                 AutoSize  = true,

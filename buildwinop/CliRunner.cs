@@ -208,7 +208,7 @@ namespace Win11Optimizer
         private static void PrintHelp()
         {
             Log($@"
-Win11 Optimizer v{AppVersion.Current} — Corn Studios
+Win11 Optimizer v{AppVersion.Current} — Corn Systems
 Headless usage:
 
   Win11Optimizer.exe --apply <profile.w11profile> [options]

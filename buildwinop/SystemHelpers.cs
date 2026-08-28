@@ -16,13 +16,13 @@ namespace Win11Optimizer
     public static class AppVersion
     {
         public const string Current = "1.4.0";
-        public const string RepoUrl = "https://github.com/Corn-Studios/win11op";
+        public const string RepoUrl = "https://github.com/Corn-Systems/win11op";
         public const string ReleasesApiUrl =
-            "https://api.github.com/repos/Corn-Studios/win11op/releases/latest";
+            "https://api.github.com/repos/Corn-Systems/win11op/releases/latest";
     }
 
     // ── DARK TITLE BAR ───────────────────────────────────────────────────────
-    // The form body is full Corn Studios dark, but Windows paints the title bar
+    // The form body is full Corn Systems dark, but Windows paints the title bar
     // white by default. DWMWA_USE_IMMERSIVE_DARK_MODE flips it to dark. The
     // attribute id is 20 on Win10 20H1+ / Win11, and 19 on older 1809 builds.
     public static class DarkTitleBar

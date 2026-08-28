@@ -190,7 +190,7 @@ Lower-level tweaks for power users. Off by default.
 
 ## Installation
 
-1. Go to [Releases](https://github.com/Corn-Studios/win11op/releases) and download the latest `.exe`
+1. Go to [Releases](https://github.com/Corn-Systems/win11op/releases) and download the latest `.exe`
 2. Right-click → **Run as Administrator**
 
 ## Build from Source
@@ -198,7 +198,7 @@ Lower-level tweaks for power users. Off by default.
 1. Install the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
 2. Clone the repo:
    ```
-   git clone https://github.com/Corn-Studios/win11op.git
+   git clone https://github.com/Corn-Systems/win11op.git
    ```
 3. Publish (self-contained single exe):
    ```

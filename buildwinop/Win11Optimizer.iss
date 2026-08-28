@@ -1,5 +1,5 @@
 ; ─────────────────────────────────────────────────────────────────────────
-; Win11Optimizer.iss — Corn Studios installer script (Inno Setup 6.x)
+; Win11Optimizer.iss — Corn Systems installer script (Inno Setup 6.x)
 ;
 ; Builds a proper Setup.exe alongside the existing portable single-file exe.
 ; Requires Inno Setup 6+: https://jrsoftware.org/isinfo.php
@@ -16,8 +16,8 @@
 
 #define MyAppName "Win11 Optimizer"
 #define MyAppVersion "1.4.0"
-#define MyAppPublisher "Corn Studios"
-#define MyAppURL "https://github.com/Corn-Studios/win11op"
+#define MyAppPublisher "Corn Systems"
+#define MyAppURL "https://github.com/Corn-Systems/win11op"
 #define MyAppExeName "Win11Optimizer.exe"
 
 [Setup]
@@ -29,8 +29,8 @@ AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}/releases
-DefaultDirName={autopf}\Corn Studios\Win11 Optimizer
-DefaultGroupName=Corn Studios
+DefaultDirName={autopf}\Corn Systems\Win11 Optimizer
+DefaultGroupName=Corn Systems
 DisableProgramGroupPage=yes
 OutputDir=installer_output
 OutputBaseFilename=Win11Optimizer-Setup
