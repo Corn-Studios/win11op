@@ -89,17 +89,9 @@ namespace Win11Optimizer
                 { title, _summaryLabel, _selUnusedBtn, _selNoneBtn, _scanBtn, _removeBtn });
         }
 
-        private void PositionToolbarButtons()
-        {
-            int r = _toolbar.Width - 12;
-            _removeBtn.Location    = new Point(r - _removeBtn.Width, 13);
-            r -= _removeBtn.Width + 6;
-            _scanBtn.Location      = new Point(r - _scanBtn.Width, 13);
-            r -= _scanBtn.Width + 14;
-            _selNoneBtn.Location   = new Point(r - _selNoneBtn.Width, 13);
-            r -= _selNoneBtn.Width + 6;
-            _selUnusedBtn.Location = new Point(r - _selUnusedBtn.Width, 13);
-        }
+        private void PositionToolbarButtons() =>
+            UiHelpers.LayoutButtonsRightToLeft(_toolbar, 13,
+                (_removeBtn, 6), (_scanBtn, 14), (_selNoneBtn, 6), (_selUnusedBtn, 0));
 
         private void SetAllSelectable(bool check)
         {
@@ -198,13 +190,7 @@ namespace Win11Optimizer
             _emptyLabel.Location = new Point(0, y);
             if (_emptyLabel.Visible) y += 30;
 
-            foreach (var row in _rows)
-            {
-                row.Width    = _innerPanel.Width;
-                row.Location = new Point(0, y);
-                y += row.Height + 2;
-            }
-            _innerPanel.Height = y;
+            UiHelpers.ReflowRowsVertically(_innerPanel, _rows, y);
         }
 
         private void UpdateSummary()
@@ -318,12 +304,12 @@ namespace Win11Optimizer
                 BackColor = Color.Transparent
             };
 
-            _sizeBadge = MakeBadge(pkg.SizeLabel,
+            _sizeBadge = UiHelpers.MakeBadge(pkg.SizeLabel,
                 Color.FromArgb(30, Theme.ACCENT.R, Theme.ACCENT.G, Theme.ACCENT.B), Theme.ACCENT);
 
             _statusBadge = pkg.InUse
-                ? MakeBadge("🔒 In Use", Color.FromArgb(30, Theme.TEXT_DIM.R, Theme.TEXT_DIM.G, Theme.TEXT_DIM.B), Theme.TEXT_DIM)
-                : MakeBadge("Unused", Color.FromArgb(30, Theme.SUCCESS.R, Theme.SUCCESS.G, Theme.SUCCESS.B), Theme.SUCCESS);
+                ? UiHelpers.MakeBadge("🔒 In Use", Color.FromArgb(30, Theme.TEXT_DIM.R, Theme.TEXT_DIM.G, Theme.TEXT_DIM.B), Theme.TEXT_DIM)
+                : UiHelpers.MakeBadge("Unused", Color.FromArgb(30, Theme.SUCCESS.R, Theme.SUCCESS.G, Theme.SUCCESS.B), Theme.SUCCESS);
 
             Paint += (s, e) =>
             {
@@ -356,15 +342,5 @@ namespace Win11Optimizer
             _nameLbl.Width     = labelW;
             _providerLbl.Width = labelW;
         }
-
-        private static Label MakeBadge(string text, Color bg, Color fg) => new Label
-        {
-            Text      = text,
-            Font      = new Font("Courier New", 6.5f),
-            ForeColor = fg,
-            BackColor = bg,
-            AutoSize  = true,
-            Padding   = new Padding(4, 2, 4, 2)
-        };
     }
 }

@@ -88,17 +88,9 @@ namespace Win11Optimizer
                 { title, _summaryLabel, _selAllBtn, _selNoneBtn, _scanBtn, _cleanBtn });
         }
 
-        private void PositionToolbarButtons()
-        {
-            int r = _toolbar.Width - 12;
-            _cleanBtn.Location   = new Point(r - _cleanBtn.Width, 13);
-            r -= _cleanBtn.Width + 6;
-            _scanBtn.Location    = new Point(r - _scanBtn.Width, 13);
-            r -= _scanBtn.Width + 14;
-            _selNoneBtn.Location = new Point(r - _selNoneBtn.Width, 13);
-            r -= _selNoneBtn.Width + 6;
-            _selAllBtn.Location  = new Point(r - _selAllBtn.Width, 13);
-        }
+        private void PositionToolbarButtons() =>
+            UiHelpers.LayoutButtonsRightToLeft(_toolbar, 13,
+                (_cleanBtn, 6), (_scanBtn, 14), (_selNoneBtn, 6), (_selAllBtn, 0));
 
         private void SetAllRows(bool check)
         {
@@ -146,14 +138,7 @@ namespace Win11Optimizer
         private void ReflowRows()
         {
             if (_innerPanel.Width < 10) return;
-            int y = 0;
-            foreach (var row in _rows)
-            {
-                row.Width    = _innerPanel.Width;
-                row.Location = new Point(0, y);
-                y += row.Height + 2;
-            }
-            _innerPanel.Height = y;
+            UiHelpers.ReflowRowsVertically(_innerPanel, _rows, 0);
         }
 
         private async Task ScanAsync()
@@ -275,11 +260,11 @@ namespace Win11Optimizer
                 AutoEllipsis = true
             };
 
-            _sizeBadge = MakeBadge(cat.SizeLabel,
+            _sizeBadge = UiHelpers.MakeBadge(cat.SizeLabel,
                 Color.FromArgb(30, Theme.ACCENT.R, Theme.ACCENT.G, Theme.ACCENT.B), Theme.ACCENT);
 
             Color riskColor = cat.RiskLevel == "Caution" ? Theme.WARNING : Theme.SUCCESS;
-            _riskBadge = MakeBadge(cat.RiskLevel == "Caution" ? "⚠ Caution" : "✔ Safe",
+            _riskBadge = UiHelpers.MakeBadge(cat.RiskLevel == "Caution" ? "⚠ Caution" : "✔ Safe",
                 Color.FromArgb(30, riskColor.R, riskColor.G, riskColor.B), riskColor);
 
             Paint += (s, e) =>
@@ -318,15 +303,5 @@ namespace Win11Optimizer
             _nameLbl.Width  = labelW;
             _descLbl.Width  = labelW;
         }
-
-        private static Label MakeBadge(string text, Color bg, Color fg) => new Label
-        {
-            Text      = text,
-            Font      = new Font("Courier New", 6.5f),
-            ForeColor = fg,
-            BackColor = bg,
-            AutoSize  = true,
-            Padding   = new Padding(4, 2, 4, 2)
-        };
     }
 }

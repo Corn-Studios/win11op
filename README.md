@@ -3,7 +3,7 @@
 > A clean, open-source Windows 10/11 optimizer built in C# / WinForms.  
 > Drop it on a fresh Windows install, run it once as Administrator, and apply exactly the tweaks you want — with full per-tweak undo support.
 
-**Version:** `1.4.0`  
+**Version:** `1.4.1`  
 **Platform:** Windows 10 / 11 (64-bit)  
 **Runtime:** Self-contained — no .NET install required  
 **License:** MIT
@@ -109,6 +109,7 @@ One-click presets to quickly select tweaks for common configurations:
 | Disable Feedback Requests | Prevents Windows asking you to rate features |
 | Disable Chat / Teams Taskbar Icon | Removes the Teams/Chat icon from the taskbar |
 | Disable Windows Recall | Kills the AI screenshot feature on Copilot+ PCs (no-op otherwise) |
+| Disable Windows Copilot | Blocks Copilot from launching system-wide via policy |
 | Disable Cloud Content & Delivery Manager | Kills Spotlight lock screen ads, silent app installs, OEM app promotions, and Start suggestions |
 | Block Telemetry Hosts | Adds 35 Microsoft telemetry domains to the hosts file (`0.0.0.0`) |
 
@@ -177,6 +178,7 @@ Lower-level tweaks for power users. Off by default.
 | IRQ Affinity — Spread GPU Interrupts | Spreads MSI-X GPU interrupts across all P-cores |
 | TSC Sync Policy: Legacy | Reduces scheduling micro-jitter on multi-core systems |
 | Enable x2APIC Mode | Improves interrupt delivery on many-core CPUs (HEDT, Ryzen) |
+| Unhide Processor Boost Mode | Reveals the hidden "Processor performance boost mode" dropdown in Advanced Power Settings — doesn't force a value, just lets you choose one yourself |
 
 ---
 
@@ -239,6 +241,8 @@ A GitHub release should include both `Win11Optimizer-Portable.exe` (the raw publ
 - The hosts file block list is cleanly removed by the Privacy undo function
 - Startup folder shortcuts cannot be disabled (Windows limitation), only deleted
 - MSI Mode and IRQ Affinity tweaks target the primary GPU adapter slot (0000) only
+- "Unhide Processor Boost Mode" only reveals the setting in Control Panel's Advanced Power Settings — it does not itself change boost behavior. Pick the mode yourself once it's visible; the "aggressive" values mean different things across Intel/AMD/laptop hardware, so this app won't pick one for you
+- Disabling Windows Copilot only blocks it from launching — it does not remove the taskbar icon (pair with the existing Chat/Teams icon tweak if you want the icon gone too)
 - Driver Cleanup only ever removes packages the app confirms are **not** currently bound to a device — "Select Unused" respects the same lock — if you plug that device back in, Windows will need to reinstall the driver
 - Disk Cleanup skips any locked/in-use files automatically rather than failing the whole pass; the freed total shown after cleaning is measured, not estimated
 

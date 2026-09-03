@@ -519,6 +519,9 @@ namespace Win11Optimizer
         private const string MmProfile     = @"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile";
         private const string DnsCacheParams = @"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters";
         private const string GpuClassKey   = @"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}\0000";
+        // Processor power management subgroup (54533251-...) → Processor performance boost mode (be337238-...)
+        private const string BoostModeSettingKey =
+            @"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\be337238-0d82-4146-a960-4f3749d470c7";
 
         private static readonly string[] TelemetryTasks =
         {
@@ -662,6 +665,13 @@ namespace Win11Optimizer
                             "SubscribedContent-338388Enabled", 0, RegistryValueKind.DWord, "Disable Start suggestions");
                         SetRegistry(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager",
                             "SubscribedContent-338389Enabled", 0, RegistryValueKind.DWord, "Disable tips/tricks"); break;
+                    case "Priv_Copilot":
+                        EnsureRegistryKey(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot");
+                        SetRegistry(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot",
+                            "TurnOffWindowsCopilot", 1, RegistryValueKind.DWord, "Disable Windows Copilot (machine)");
+                        EnsureRegistryKey(@"HKEY_CURRENT_USER\Software\Policies\Microsoft\Windows\WindowsCopilot");
+                        SetRegistry(@"HKEY_CURRENT_USER\Software\Policies\Microsoft\Windows\WindowsCopilot",
+                            "TurnOffWindowsCopilot", 1, RegistryValueKind.DWord, "Disable Windows Copilot (user)"); break;
                     case "Priv_HostsBlock":
                         ApplyHostsBlockList(); break;
 
@@ -829,6 +839,11 @@ namespace Win11Optimizer
                         RunCommand("bcdedit /set tscsyncpolicy legacy", "TSC sync policy → legacy"); break;
                     case "Adv_X2Apic":
                         RunCommand("bcdedit /set x2apicpolicy enable", "Enable x2APIC mode"); break;
+                    case "Adv_BoostMode":
+                        // Only unhides the setting (Attributes=2) — does not set a boost value.
+                        // Goes through SetRegistry so it's backed up and undoable like any other registry tweak.
+                        SetRegistry(BoostModeSettingKey, "Attributes", 2, RegistryValueKind.DWord,
+                            "Unhide Processor Performance Boost Mode"); break;
 
                     default:
                         _results.Add(new TweakResult { Name = $"Unknown key: {key}", Success = false, Error = "No handler" });
@@ -1028,6 +1043,10 @@ namespace Win11Optimizer
                     "Priv_Recall" =>
                         RegDWord(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsAI",
                             "DisableAIDataAnalysis") == 1,
+
+                    "Priv_Copilot" =>
+                        RegDWord(@"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot",
+                            "TurnOffWindowsCopilot") == 1,
 
                     "Priv_HostsBlock" => HostsBlockApplied(),
 

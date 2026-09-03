@@ -196,6 +196,10 @@ namespace Win11Optimizer
                 "Disable Windows Recall",
                 "Kills AI screenshot feature on Copilot+ PCs (no-op otherwise)",
                 "Sets DisableAIDataAnalysis = 1 in both machine and user WindowsAI policy keys"),
+            E("Privacy","✨",true,"Priv_Copilot",
+                "Disable Windows Copilot",
+                "Blocks Copilot from launching and removes its background presence",
+                "Sets TurnOffWindowsCopilot = 1 in both machine and user WindowsCopilot policy keys\nStops the Copilot app/sidebar from being invoked system-wide. Does not remove the taskbar icon by itself — combine with the taskbar setting if you want it gone visually too."),
             E("Privacy","🚫",true,"Priv_HostsBlock",
                 "Block Telemetry Hosts",
                 "Adds 35 Microsoft telemetry domains to the hosts file (0.0.0.0)",
@@ -392,6 +396,10 @@ namespace Win11Optimizer
                 "Enable x2APIC Mode",
                 "Enables x2APIC interrupt controller — improves handling on many-core CPUs",
                 "bcdedit /set x2apicpolicy enable\nx2APIC extends the legacy APIC interrupt controller to support more than 255 logical processors and improves interrupt delivery efficiency. Most beneficial on HEDT and Ryzen systems with many cores."),
+            E("Advanced","🚀",false,"Adv_BoostMode",
+                "Unhide Processor Boost Mode",
+                "Reveals the hidden Boost Mode dropdown in Advanced Power Settings",
+                "Sets Attributes = 2 on the PERFBOOSTMODE setting definition (HKLM\\SYSTEM\\...\\Power\\PowerSettings\\54533251-...\\be337238-...)\nThis is a Microsoft-documented but hidden power setting. It doesn't force a boost value — it just makes 'Processor performance boost mode' visible under Control Panel → Power Options → Change plan settings → Change advanced power settings → Processor power management, so you can pick Aggressive / Efficient Aggressive / etc. yourself, per plan and per AC/DC state. Safe and fully reversible — undo re-hides it."),
 
             // ── New Privacy tweaks ────────────────────────────────────────────────────
             E("Privacy","☁️",true,"Priv_CloudContent",
